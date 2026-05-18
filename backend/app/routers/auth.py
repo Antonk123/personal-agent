@@ -37,8 +37,11 @@ async def request_magic_link(body: MagicLinkRequest, db: AsyncSession = Depends(
     if token:
         try:
             await send_magic_link_email(body.email, token)
-        except Exception:
-            pass  # Log but don't reveal to user
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).exception(
+                "Failed to send magic link to %s: %s", body.email, exc
+            )
 
     # Always return 200 to not reveal email existence
     return MagicLinkResponse(message="Magic link sent")
