@@ -1,13 +1,30 @@
+import logging
+
 import aiosmtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 async def send_magic_link_email(to_email: str, token: str):
     """Send magic link email to user."""
     verify_url = f"{settings.app_url}/auth/verify?token={token}"
+
+    # In dev: log the link instead of sending email
+    if not settings.smtp_user:
+        logger.warning("=" * 60)
+        logger.warning("MAGIC LINK (dev mode - no SMTP configured)")
+        logger.warning(f"  To: {to_email}")
+        logger.warning(f"  URL: {verify_url}")
+        logger.warning("=" * 60)
+        print(f"\n{'=' * 60}")
+        print(f"MAGIC LINK for {to_email}:")
+        print(f"  {verify_url}")
+        print(f"{'=' * 60}\n")
+        return
 
     message = MIMEMultipart("alternative")
     message["From"] = settings.from_email
