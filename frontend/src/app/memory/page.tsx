@@ -1,75 +1,197 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api } from "@/lib/api";
 import Link from "next/link";
+import { Pencil, Briefcase, Users, FileText, ChevronRight } from "lucide-react";
+import { api } from "@/lib/api";
+import { AppShell } from "@/components/AppShell";
+import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { Skeleton } from "@/components/ui/Skeleton";
+
+interface Profile {
+  company_name?: string;
+  role?: string;
+  services?: string[];
+  company_description?: string;
+}
+
+interface Assignment {
+  id: string;
+  name: string;
+  status: string;
+}
 
 export default function MemoryPage() {
-  const [profile, setProfile] = useState<any>(null);
-  const [assignments, setAssignments] = useState<any[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      try {
-        const [p, a] = await Promise.all([api.getProfile(), api.getAssignments()]);
-        setProfile(p);
-        setAssignments(a);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
+    Promise.all([api.getProfile(), api.getAssignments()])
+      .then(([p, a]) => {
+        setProfile(p as Profile);
+        setAssignments((a as Assignment[]) || []);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-full"><p className="text-surface-800/50 text-sm">Laddar...</p></div>;
-  }
-
   return (
-    <div className="p-4 max-w-lg mx-auto space-y-4 pb-20">
-      <h1 className="text-xl font-bold">Mitt minne</h1>
-      <p className="text-sm text-surface-800/60">Det här är vad jag vet om dig. Du kan korrigera allt som inte stämmer.</p>
-
-      {profile && profile.company_name && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="font-semibold">Profil</h3>
-            <Link href="/memory/profile" className="text-xs text-primary-600">Redigera</Link>
-          </div>
-          <p className="text-sm"><span className="text-surface-800/50">Företag:</span> {profile.company_name}</p>
-          {profile.role && <p className="text-sm"><span className="text-surface-800/50">Roll:</span> {profile.role}</p>}
-          {profile.services?.length > 0 && (
-            <div className="flex flex-wrap gap-1.5 mt-2">
-              {profile.services.map((s: string) => (
-                <span key={s} className="text-xs bg-primary-50 text-primary-700 px-2 py-0.5 rounded-full">{s}</span>
-              ))}
+    <AppShell title="Minne">
+      <div className="mx-auto max-w-[640px] px-4 py-5 space-y-5">
+        {loading ? (
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              <Skeleton className="h-[72px]" />
+              <Skeleton className="h-[72px]" />
+              <Skeleton className="h-[72px]" />
             </div>
-          )}
-        </div>
-      )}
+            <Skeleton className="h-32" />
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-3 gap-2">
+              <StatCard
+                icon={<Briefcase size={15} />}
+                value={assignments.length}
+                label="Uppdrag"
+                href="/assignments"
+              />
+              <StatCard
+                icon={<Users size={15} />}
+                value="—"
+                label="Kontakter"
+              />
+              <StatCard
+                icon={<FileText size={15} />}
+                value="—"
+                label="Beslut"
+              />
+            </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="font-semibold">Uppdrag</h2>
-          <span className="text-xs text-surface-800/50">{assignments.length} st</span>
-        </div>
-        <div className="space-y-2">
-          {assignments.map((a) => (
-            <div key={a.id} className="card">
-              <div className="flex items-start justify-between mb-1">
-                <h3 className="font-semibold text-sm">{a.name}</h3>
-                <span className={`text-xs px-2 py-0.5 rounded-full ${
-                  a.status === "active" ? "bg-green-50 text-green-700" : "bg-surface-100 text-surface-800/60"
-                }`}>{a.status}</span>
+            <section>
+              <SectionHeader title="Profil" action={
+                <Link
+                  href="/memory/profile"
+                  className="inline-flex items-center gap-1 text-[12px] text-fg-muted hover:text-accent transition-colors"
+                >
+                  <Pencil size={11} />
+                  Redigera
+                </Link>
+              }/>
+              {profile && (profile.company_name || profile.role) ? (
+                <Card>
+                  {profile.company_name && (
+                    <div className="text-[15px] font-semibold tracking-tight">{profile.company_name}</div>
+                  )}
+                  {profile.role && (
+                    <div className="text-[13px] text-fg-muted mt-0.5">{profile.role}</div>
+                  )}
+                  {profile.company_description && (
+                    <p className="mt-3 text-[13px] text-fg-muted leading-relaxed">
+                      {profile.company_description}
+                    </p>
+                  )}
+                  {profile.services && profile.services.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {profile.services.map((s) => (
+                        <Badge key={s} tone="accent">{s}</Badge>
+                      ))}
+                    </div>
+                  )}
+                </Card>
+              ) : (
+                <Card>
+                  <p className="text-[13px] text-fg-muted">
+                    Ingen profil ifylld ännu.{" "}
+                    <Link href="/memory/profile" className="text-accent hover:underline">
+                      Fyll i den nu
+                    </Link>
+                    .
+                  </p>
+                </Card>
+              )}
+            </section>
+
+            <section>
+              <SectionHeader
+                title="Senaste uppdrag"
+                action={
+                  <Link
+                    href="/assignments"
+                    className="inline-flex items-center gap-1 text-[12px] text-fg-muted hover:text-accent transition-colors"
+                  >
+                    Visa alla
+                    <ChevronRight size={12} />
+                  </Link>
+                }
+              />
+              <div className="space-y-2">
+                {assignments.slice(0, 3).map((a) => (
+                  <Link key={a.id} href={`/assignments/${a.id}`}>
+                    <Card interactive>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="text-[14px] font-medium truncate">{a.name}</div>
+                        <StatusBadge status={a.status} />
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+                {assignments.length === 0 && (
+                  <Card>
+                    <p className="text-[13px] text-fg-muted">
+                      Inga uppdrag registrerade ännu.{" "}
+                      <Link href="/assignments/new" className="text-accent hover:underline">
+                        Skapa det första
+                      </Link>
+                      .
+                    </p>
+                  </Card>
+                )}
               </div>
-              {a.role && <p className="text-xs text-surface-800/60">Roll: {a.role}</p>}
-              {a.client && <p className="text-xs text-surface-800/60">Beställare: {a.client}</p>}
-            </div>
-          ))}
-          {assignments.length === 0 && <p className="text-sm text-surface-800/50">Inga uppdrag registrerade ännu.</p>}
+            </section>
+          </>
+        )}
+      </div>
+    </AppShell>
+  );
+}
+
+function StatCard({ icon, value, label, href }: {
+  icon: React.ReactNode;
+  value: string | number;
+  label: string;
+  href?: string;
+}) {
+  const content = (
+    <Card padding="sm" interactive={!!href} className="h-[72px] flex flex-col justify-between">
+      <div className="flex items-center justify-between">
+        <span className="text-fg-subtle">{icon}</span>
+      </div>
+      <div>
+        <div className="text-[22px] font-semibold tracking-tight leading-none tabular-nums">{value}</div>
+        <div className="text-[10px] uppercase tracking-[0.08em] text-fg-subtle font-mono mt-1">
+          {label}
         </div>
       </div>
+    </Card>
+  );
+  return href ? <Link href={href}>{content}</Link> : content;
+}
+
+function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between mb-2.5">
+      <h2 className="text-[11px] uppercase tracking-[0.08em] text-fg-subtle font-mono font-medium">
+        {title}
+      </h2>
+      {action}
     </div>
   );
+}
+
+function StatusBadge({ status }: { status: string }) {
+  if (status === "active") return <Badge tone="success">● Aktivt</Badge>;
+  if (status === "paused") return <Badge tone="warning">⏸ Pausat</Badge>;
+  return <Badge>{status}</Badge>;
 }

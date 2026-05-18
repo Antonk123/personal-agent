@@ -2,11 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
 import { api } from "@/lib/api";
+import { AppShell } from "@/components/AppShell";
+import { Button } from "@/components/ui/Button";
+import { Input, Label } from "@/components/ui/Input";
+import { IconButton } from "@/components/ui/IconButton";
+
+interface Form {
+  company_name: string;
+  role: string;
+  services: string;
+  company_description: string;
+}
 
 export default function ProfileEditPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ company_name: "", role: "", services: "", company_description: "" });
+  const [form, setForm] = useState<Form>({
+    company_name: "",
+    role: "",
+    services: "",
+    company_description: "",
+  });
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -39,27 +56,63 @@ export default function ProfileEditPage() {
   }
 
   return (
-    <div className="p-4 max-w-lg mx-auto pb-20">
-      <h1 className="text-xl font-bold mb-4">Redigera profil</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
+    <AppShell
+      title="Redigera profil"
+      action={
+        <IconButton aria-label="Tillbaka" onClick={() => router.back()}>
+          <ArrowLeft size={18} />
+        </IconButton>
+      }
+    >
+      <form onSubmit={handleSubmit} className="mx-auto max-w-[520px] px-4 py-5 space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Företagsnamn</label>
-          <input className="input-field" value={form.company_name} onChange={(e) => setForm({ ...form, company_name: e.target.value })} />
+          <Label htmlFor="company">Företagsnamn</Label>
+          <Input
+            id="company"
+            value={form.company_name}
+            onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+            placeholder="Anton AB"
+          />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Roll</label>
-          <input className="input-field" value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })} />
+          <Label htmlFor="role">Roll</Label>
+          <Input
+            id="role"
+            value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value })}
+            placeholder="Projektledare"
+          />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Tjänster (kommaseparerade)</label>
-          <input className="input-field" value={form.services} onChange={(e) => setForm({ ...form, services: e.target.value })} placeholder="projektledning, byggledning" />
+          <Label htmlFor="services">Tjänster</Label>
+          <Input
+            id="services"
+            value={form.services}
+            onChange={(e) => setForm({ ...form, services: e.target.value })}
+            placeholder="projektledning, byggledning"
+          />
+          <p className="mt-1 text-[12px] text-fg-subtle">Separera med komma</p>
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Företagsbeskrivning</label>
-          <textarea className="input-field resize-none" rows={3} value={form.company_description} onChange={(e) => setForm({ ...form, company_description: e.target.value })} />
+          <Label htmlFor="desc">Företagsbeskrivning</Label>
+          <textarea
+            id="desc"
+            value={form.company_description}
+            onChange={(e) => setForm({ ...form, company_description: e.target.value })}
+            rows={4}
+            className="w-full px-3.5 py-2.5 rounded-md border border-border bg-surface text-fg text-sm placeholder:text-fg-subtle focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/20 resize-none"
+            placeholder="Vad gör företaget?"
+          />
         </div>
-        <button type="submit" disabled={saving} className="btn-primary w-full">{saving ? "Sparar..." : "Spara"}</button>
+        <div className="pt-2 flex gap-2">
+          <Button type="button" variant="secondary" onClick={() => router.back()}>
+            Avbryt
+          </Button>
+          <Button type="submit" loading={saving} block>
+            Spara
+          </Button>
+        </div>
       </form>
-    </div>
+    </AppShell>
   );
 }

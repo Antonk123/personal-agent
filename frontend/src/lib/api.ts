@@ -98,6 +98,29 @@ class ApiClient {
   async getAssignment(id: string) {
     return this.request<Record<string, any>>(`/memory/assignments/${id}`);
   }
+
+  async addContact(assignmentId: string, data: Record<string, unknown>) {
+    return this.request(`/memory/assignments/${assignmentId}/contacts`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async addDecision(assignmentId: string, data: Record<string, unknown>) {
+    return this.request(`/memory/assignments/${assignmentId}/decisions`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Admin / export
+  async exportData() {
+    return this.request<Record<string, any>>("/admin/export");
+  }
+
+  async health() {
+    return this.request<{ status: string }>("/health");
+  }
 }
 
 export const api = new ApiClient();
