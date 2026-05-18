@@ -1,0 +1,103 @@
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+class ApiClient {
+  private getToken(): string | null {
+    if (typeof window === "undefined") return null;
+    return localStorage.getItem("session_token");
+  }
+
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      ...(options.headers as Record<string, string>),
+    };
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${API_URL}${path}`, { ...options, headers });
+
+    if (response.status === 401) {
+      localStorage.removeItem("session_token");
+      window.location.href = "/auth/login";
+      throw new Error("Unauthorized");
+    }
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: "Unknown error" }));
+      throw new Error(error.detail || `HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  // Auth
+  async requestMagicLink(email: string) {
+    return this.request("/auth/magic-link", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+  }
+
+  async verifyToken(token: string) {
+    return this.request<{ session_token: string; expires_at: string }>(
+      `/auth/verify?token=${token}`
+    );
+  }
+
+  // Chat
+  async sendMessage(message: string, conversationId?: string) {
+    return this.request<{ conversation_id: string; response: string; tokens_used: number }>(
+      "/chat/",
+      {
+        method: "POST",
+        body: JSON.stringify({ message, conversation_id: conversationId }),
+      }
+    );
+  }
+
+  async getConversations() {
+    return this.request<Array<{ id: string; title: string; updated_at: string }>>(
+      "/chat/conversations"
+    );
+  }
+
+  async getMessages(conversationId: string) {
+    return this.request<
+      Array<{ id: string; role: string; content: string; created_at: string }>
+    >(`/chat/conversations/${conversationId}/messages`);
+  }
+
+  // Memory
+  async getProfile() {
+    return this.request<Record<string, any>>("/memory/profile");
+  }
+
+  async updateProfile(data: Record<string, unknown>) {
+    return this.request("/memory/profile", {
+      method: "PUT",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAssignments() {
+    return this.request<
+      Array<{ id: string; name: string; role: string; client: string; phase: string; status: string }>
+    >("/memory/assignments");
+  }
+
+  async createAssignment(data: Record<string, unknown>) {
+    return this.request("/memory/assignments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+  }
+
+  async getAssignment(id: string) {
+    return this.request<Record<string, any>>(`/memory/assignments/${id}`);
+  }
+}
+
+export const api = new ApiClient();

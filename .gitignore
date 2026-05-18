@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.env
+.venv/
+node_modules/
+*.egg-info/
+dist/
+.pytest_cache/
+alembic/versions/*.pyc
+.next/
+.DS_Store
+*.log
+.vercel/
