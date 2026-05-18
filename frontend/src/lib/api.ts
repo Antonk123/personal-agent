@@ -70,6 +70,27 @@ class ApiClient {
     >(`/chat/conversations/${conversationId}/messages`);
   }
 
+  async renameConversation(conversationId: string, title: string) {
+    return this.request<{ id: string; title: string }>(
+      `/chat/conversations/${conversationId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ title }),
+      },
+    );
+  }
+
+  async deleteConversation(conversationId: string) {
+    const token = this.getToken();
+    const response = await fetch(`${API_URL}/chat/conversations/${conversationId}`, {
+      method: "DELETE",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!response.ok && response.status !== 204) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+  }
+
   // Memory
   async getProfile() {
     return this.request<Record<string, any>>("/memory/profile");

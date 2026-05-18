@@ -27,6 +27,8 @@ interface ChatState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   reset: () => void;
+  renameConversation: (id: string, title: string) => void;
+  removeConversation: (id: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -43,4 +45,15 @@ export const useChatStore = create<ChatState>((set) => ({
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),
   reset: () => set({ messages: [], currentConversationId: null, error: null }),
+  renameConversation: (id, title) =>
+    set((state) => ({
+      conversations: state.conversations.map((c) => (c.id === id ? { ...c, title } : c)),
+    })),
+  removeConversation: (id) =>
+    set((state) => ({
+      conversations: state.conversations.filter((c) => c.id !== id),
+      currentConversationId:
+        state.currentConversationId === id ? null : state.currentConversationId,
+      messages: state.currentConversationId === id ? [] : state.messages,
+    })),
 }));
