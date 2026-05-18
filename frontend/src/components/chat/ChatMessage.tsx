@@ -42,6 +42,7 @@ export function ChatMessage({ role, content, timestamp, userInitials = "AK" }: C
       />
       <div className={cn("min-w-0", isUser && "flex flex-col items-end")}>
         <div
+          data-bubble={isUser ? "user" : "ai"}
           className={cn(
             "rounded-[12px] px-3.5 py-2.5 text-[14px] leading-relaxed",
             isUser
@@ -77,7 +78,7 @@ export function ChatMessage({ role, content, timestamp, userInitials = "AK" }: C
 
 function Markdown({ content }: { content: string }) {
   return (
-    <div className="prose prose-sm max-w-none prose-p:my-1.5 prose-headings:mt-3 prose-headings:mb-1.5 prose-headings:font-semibold prose-strong:font-semibold prose-strong:text-fg prose-code:bg-surface-2 prose-code:rounded-[4px] prose-code:px-1 prose-code:py-px prose-code:text-[.9em] prose-code:before:content-[''] prose-code:after:content-[''] prose-code:font-mono prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-a:text-accent prose-a:no-underline hover:prose-a:underline">
+    <div className="markdown-body text-[14px] text-fg leading-relaxed">
       <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
     </div>
   );

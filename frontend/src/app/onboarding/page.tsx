@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { api } from "@/lib/api";
 import { ChatMessage } from "@/components/chat/ChatMessage";
 import { ChatInput } from "@/components/chat/ChatInput";
@@ -57,9 +57,20 @@ export default function OnboardingPage() {
       <header className="px-4 py-3 border-b border-border bg-surface">
         <div className="flex items-center justify-between mb-2.5">
           <Logo size="sm" />
-          <span className="text-[11px] text-fg-subtle font-mono tabular-nums">
-            Steg {progress}/{totalSteps}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-[11px] text-fg-subtle font-mono tabular-nums">
+              Steg {progress}/{totalSteps}
+            </span>
+            <button
+              type="button"
+              onClick={handleFinish}
+              className="inline-flex items-center gap-1 text-[12px] text-fg-muted hover:text-fg transition-colors"
+              aria-label="Hoppa över onboarding"
+            >
+              Hoppa över
+              <X size={12} />
+            </button>
+          </div>
         </div>
         <div className="flex gap-1">
           {Array.from({ length: totalSteps }, (_, i) => (
