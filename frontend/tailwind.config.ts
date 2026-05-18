@@ -43,6 +43,7 @@ const config: Config = {
       fontFamily: {
         sans: ["var(--font-sans)", "system-ui", "sans-serif"],
         mono: ["var(--font-mono)", "ui-monospace", "monospace"],
+        serif: ["var(--font-serif)", "Georgia", "serif"],
       },
       borderRadius: {
         DEFAULT: "10px",
@@ -69,11 +70,16 @@ const config: Config = {
           from: { opacity: "0", transform: "translateY(4px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "pulse-soft": {
+          "0%, 100%": { opacity: "1" },
+          "50%": { opacity: "0.35" },
+        },
       },
       animation: {
         shimmer: "shimmer 1.4s linear infinite",
         "fade-in": "fade-in 150ms ease-out",
         "slide-up": "slide-up 200ms ease-out",
+        "pulse-soft": "pulse-soft 2.4s ease-in-out infinite",
       },
     },
   },

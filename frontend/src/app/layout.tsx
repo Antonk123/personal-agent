@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
 const fontSans = Inter({
@@ -12,6 +12,14 @@ const fontMono = JetBrains_Mono({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-mono",
+});
+
+const fontSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-serif",
 });
 
 export const metadata: Metadata = {
@@ -31,7 +39,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="sv" className={`${fontSans.variable} ${fontMono.variable}`}>
+    <html lang="sv" className={`${fontSans.variable} ${fontMono.variable} ${fontSerif.variable}`}>
       <body className="min-h-dvh">{children}</body>
     </html>
   );
