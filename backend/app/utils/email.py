@@ -42,23 +42,48 @@ Länken är giltig i {settings.magic_link_expiry_minutes} minuter.
 / Byggagent
 """
 
-    html_content = f"""
-<html>
-<body style="font-family: sans-serif; padding: 20px;">
-    <h2>Logga in på Byggagent</h2>
-    <p>Klicka på knappen nedan för att logga in:</p>
-    <a href="{verify_url}" style="
-        display: inline-block;
-        padding: 12px 24px;
-        background-color: #2563eb;
-        color: white;
-        text-decoration: none;
-        border-radius: 6px;
-        font-weight: bold;
-    ">Logga in</a>
-    <p style="color: #666; margin-top: 20px; font-size: 14px;">
-        Länken är giltig i {settings.magic_link_expiry_minutes} minuter.
-    </p>
+    html_content = f"""\
+<!DOCTYPE html>
+<html lang="sv">
+<body style="margin:0;padding:32px 16px;background:#fafaf9;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#0a0a0a;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width:480px;" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding-bottom:24px;">
+              <span style="display:inline-flex;align-items:center;gap:8px;">
+                <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#0d9488,#0f766e);border-radius:6px;"></span>
+                <span style="font-size:15px;font-weight:600;letter-spacing:-0.01em;">Byggagent</span>
+              </span>
+            </td>
+          </tr>
+          <tr>
+            <td style="background:#ffffff;border:1px solid #e7e5e4;border-radius:10px;padding:28px;">
+              <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;letter-spacing:-0.015em;color:#0a0a0a;">Logga in</h1>
+              <p style="margin:0 0 24px;color:#57534e;font-size:14px;line-height:1.55;">
+                Klicka på knappen nedan för att logga in på Byggagent.
+              </p>
+              <a href="{verify_url}" style="display:inline-block;padding:11px 22px;background:#0d9488;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;">
+                Logga in
+              </a>
+              <p style="margin:24px 0 0;color:#78716c;font-size:12px;line-height:1.55;">
+                Länken är giltig i {settings.magic_link_expiry_minutes} minuter. Om du inte begärt den här mejlen kan du ignorera den.
+              </p>
+              <p style="margin:16px 0 0;color:#a8a29e;font-size:11px;line-height:1.55;word-break:break-all;font-family:ui-monospace,Menlo,Consolas,monospace;">
+                {verify_url}
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:16px 4px;color:#a8a29e;font-size:11px;">
+              Du får denna mejl eftersom någon angett din adress på Byggagent.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
 </body>
 </html>
 """
