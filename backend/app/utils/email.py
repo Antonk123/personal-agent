@@ -99,3 +99,4 @@ Länken är giltig i {settings.magic_link_expiry_minutes} minuter.
         password=settings.smtp_password,
         use_tls=True,
     )
+    logger.info("Magic link email sent to %s via %s", to_email, settings.smtp_host)
