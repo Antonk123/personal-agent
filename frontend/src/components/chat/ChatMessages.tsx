@@ -1,11 +1,30 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { MessageSquarePlus, ChevronRight } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
-import { Spinner } from "@/components/ui/Spinner";
 import { useChatStore } from "@/stores/chat-store";
 
-export function ChatMessages() {
+const SUGGESTIONS = [
+  "Sammanfatta vad jag jobbat med den här veckan",
+  "Vilka beslut väntar på återkoppling?",
+  "Skapa ett nytt uppdrag",
+];
+
+interface ChatMessagesProps {
+  onSuggestion?: (text: string) => void;
+}
+
+function formatTime(iso: string): string {
+  try {
+    const d = new Date(iso);
+    return d.toLocaleTimeString("sv-SE", { hour: "2-digit", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
   const { messages, isLoading } = useChatStore();
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -15,31 +34,70 @@ export function ChatMessages() {
 
   if (messages.length === 0 && !isLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="text-center max-w-sm">
-          <p className="text-4xl mb-3">👋</p>
-          <p className="text-lg font-medium mb-1">Hej!</p>
-          <p className="text-surface-800/60 text-sm">
-            Vad kan jag hjälpa dig med idag?
-          </p>
+      <div className="flex-1 overflow-y-auto px-4 py-8 md:px-6">
+        <div className="mx-auto max-w-[600px]">
+          <div className="text-center mb-8 animate-slide-up">
+            <div className="inline-flex h-12 w-12 items-center justify-center rounded-[12px] bg-accent-soft text-accent-soft-fg mb-4">
+              <MessageSquarePlus size={22} strokeWidth={2} />
+            </div>
+            <h2 className="text-xl font-semibold tracking-tight mb-1.5">
+              Vad jobbar du med idag?
+            </h2>
+            <p className="text-sm text-fg-muted">
+              Jag kommer ihåg dina uppdrag, kontakter och beslut.
+            </p>
+          </div>
+
+          {onSuggestion && (
+            <div className="space-y-2">
+              <div className="text-[11px] uppercase tracking-[0.08em] text-fg-subtle font-mono pl-1 mb-1.5">
+                Förslag
+              </div>
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => onSuggestion(s)}
+                  className="group w-full flex items-center justify-between gap-3 rounded-[10px] border border-border bg-surface px-4 py-3 text-left text-[14px] text-fg transition-colors hover:border-border-strong"
+                >
+                  <span>{s}</span>
+                  <ChevronRight
+                    size={15}
+                    className="text-fg-subtle group-hover:text-fg transition-colors shrink-0"
+                  />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-4">
-      {messages.map((msg) => (
-        <ChatMessage key={msg.id} role={msg.role} content={msg.content} />
-      ))}
-      {isLoading && (
-        <div className="flex justify-start mb-3">
-          <div className="bg-surface-100 rounded-2xl rounded-bl-md px-4 py-3">
-            <Spinner size="sm" />
+    <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 md:px-6">
+      <div className="mx-auto max-w-[760px] space-y-3">
+        {messages.map((msg) => (
+          <ChatMessage
+            key={msg.id}
+            role={msg.role}
+            content={msg.content}
+            timestamp={formatTime(msg.created_at)}
+          />
+        ))}
+        {isLoading && (
+          <div className="flex gap-2.5">
+            <div className="h-7 w-7 rounded-md bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-white text-[10px] font-semibold mt-0.5">
+              A
+            </div>
+            <div className="rounded-[12px] bg-surface border border-border px-3.5 py-3 inline-flex gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:200ms]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:400ms]" />
+            </div>
           </div>
-        </div>
-      )}
-      <div ref={bottomRef} />
+        )}
+        <div ref={bottomRef} />
+      </div>
     </div>
   );
 }

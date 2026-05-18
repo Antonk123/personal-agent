@@ -17,7 +17,7 @@ export default function NewChatPage() {
 
   return (
     <>
-      <ChatMessages />
+      <ChatMessages onSuggestion={sendMessage} />
       <ChatInput onSend={sendMessage} disabled={isLoading} />
     </>
   );
