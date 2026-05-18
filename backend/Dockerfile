@@ -11,6 +11,4 @@ RUN pip install --no-cache-dir ".[dev]"
 
 COPY . .
 
-RUN chmod +x start.sh
-
-CMD ["./start.sh"]
+CMD ["bash", "./start.sh"]
