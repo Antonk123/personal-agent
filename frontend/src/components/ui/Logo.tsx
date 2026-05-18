@@ -26,7 +26,7 @@ const TEXT_SIZES = {
   lg: "text-lg",
 };
 
-export function Logo({ size = "md", showWordmark = true, wordmark = "Byggagent", className }: LogoProps) {
+export function Logo({ size = "md", showWordmark = true, wordmark = "Cortex", className }: LogoProps) {
   return (
     <span className={cn("inline-flex items-center gap-2", className)}>
       <span

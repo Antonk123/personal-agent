@@ -1,6 +1,6 @@
-# Byggagent — Personlig Arbetsagent
+# Cortex — Personlig Arbetsassistent
 
-AI-assistent med persistent, strukturerat minne. Byggd för konsulter inom bygg och teknik som behöver en agent som faktiskt kommer ihåg deras uppdrag, kontakter och beslut.
+AI-assistent med persistent, strukturerat minne. Byggd för konsulter och proffs som behöver en agent som faktiskt kommer ihåg deras uppdrag, kontakter och beslut.
 
 ## Arkitektur
 

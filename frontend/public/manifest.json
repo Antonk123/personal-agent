@@ -1,11 +1,11 @@
 {
-  "name": "Byggagent",
-  "short_name": "Byggagent",
+  "name": "Cortex",
+  "short_name": "Cortex",
   "description": "Din personliga arbetsassistent",
   "start_url": "/chat",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563eb",
+  "background_color": "#fafaf9",
+  "theme_color": "#0d9488",
   "orientation": "portrait-primary",
   "icons": [
     { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },

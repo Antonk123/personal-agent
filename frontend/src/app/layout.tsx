@@ -15,7 +15,7 @@ const fontMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Byggagent",
+  title: "Cortex",
   description: "Din personliga arbetsassistent",
   manifest: "/manifest.json",
 };

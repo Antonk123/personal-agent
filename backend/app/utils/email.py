@@ -29,7 +29,7 @@ async def send_magic_link_email(to_email: str, token: str):
     message = MIMEMultipart("alternative")
     message["From"] = settings.from_email
     message["To"] = to_email
-    message["Subject"] = "Logga in på Byggagent"
+    message["Subject"] = "Din inloggningslänk till Cortex"
 
     text_content = f"""Hej!
 
@@ -39,7 +39,7 @@ Klicka på länken nedan för att logga in:
 
 Länken är giltig i {settings.magic_link_expiry_minutes} minuter.
 
-/ Byggagent
+/ Cortex
 """
 
     html_content = f"""\
@@ -54,7 +54,7 @@ Länken är giltig i {settings.magic_link_expiry_minutes} minuter.
             <td style="padding-bottom:24px;">
               <span style="display:inline-flex;align-items:center;gap:8px;">
                 <span style="display:inline-block;width:24px;height:24px;background:linear-gradient(135deg,#0d9488,#0f766e);border-radius:6px;"></span>
-                <span style="font-size:15px;font-weight:600;letter-spacing:-0.01em;">Byggagent</span>
+                <span style="font-size:15px;font-weight:600;letter-spacing:-0.01em;">Cortex</span>
               </span>
             </td>
           </tr>
@@ -62,7 +62,7 @@ Länken är giltig i {settings.magic_link_expiry_minutes} minuter.
             <td style="background:#ffffff;border:1px solid #e7e5e4;border-radius:10px;padding:28px;">
               <h1 style="margin:0 0 8px;font-size:20px;font-weight:600;letter-spacing:-0.015em;color:#0a0a0a;">Logga in</h1>
               <p style="margin:0 0 24px;color:#57534e;font-size:14px;line-height:1.55;">
-                Klicka på knappen nedan för att logga in på Byggagent.
+                Klicka på knappen nedan för att logga in på Cortex.
               </p>
               <a href="{verify_url}" style="display:inline-block;padding:11px 22px;background:#0d9488;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:500;font-size:14px;">
                 Logga in
@@ -77,7 +77,7 @@ Länken är giltig i {settings.magic_link_expiry_minutes} minuter.
           </tr>
           <tr>
             <td style="padding:16px 4px;color:#a8a29e;font-size:11px;">
-              Du får denna mejl eftersom någon angett din adress på Byggagent.
+              Du får denna mejl eftersom någon angett din adress på Cortex.
             </td>
           </tr>
         </table>

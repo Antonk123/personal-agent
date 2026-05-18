@@ -47,7 +47,7 @@ export default function AccountPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `byggagent-export-${new Date().toISOString().slice(0, 10)}.json`;
+      a.download = `cortex-export-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
     } finally {
@@ -165,7 +165,7 @@ export default function AccountPage() {
         </Button>
 
         <p className="text-center text-[11px] text-fg-subtle font-mono">
-          Byggagent · v0.1.0
+          Cortex · v0.1.0
         </p>
       </div>
     </AppShell>
