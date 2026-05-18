@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/lib/api";
 import { setSession } from "@/lib/auth";
 
-export default function VerifyPage() {
+function VerifyInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [error, setError] = useState("");
@@ -21,7 +21,6 @@ export default function VerifyPage() {
       .verifyToken(token)
       .then(async (data) => {
         setSession(data.session_token);
-        // Check if onboarding needed
         try {
           const profile = await api.getProfile();
           if (!profile || !profile.onboarding_completed) {
@@ -51,5 +50,19 @@ export default function VerifyPage() {
     <div className="flex min-h-screen items-center justify-center">
       <p className="text-surface-800/60">Verifierar...</p>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <p className="text-surface-800/60">Laddar...</p>
+        </div>
+      }
+    >
+      <VerifyInner />
+    </Suspense>
   );
 }
