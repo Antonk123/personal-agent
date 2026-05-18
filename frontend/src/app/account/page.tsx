@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { LogOut, Moon, Sun, Download, ChevronRight, Pencil } from "lucide-react";
+import { LogOut, Moon, Sun, Download, ChevronRight, Pencil, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { clearSession } from "@/lib/auth";
 import { useTheme } from "@/lib/theme";
@@ -122,6 +122,19 @@ export default function AccountPage() {
                 </span>
               </button>
             </SettingRow>
+          </Card>
+        </Section>
+
+        <Section title="Profil">
+          <Card padding="none">
+            <Link href="/onboarding" className="block">
+              <SettingRow
+                label="Kör introduktionen igen"
+                desc="Lär agenten känna dig och dina uppdrag på nytt"
+              >
+                <Sparkles size={15} className="text-fg-subtle" />
+              </SettingRow>
+            </Link>
           </Card>
         </Section>
 
