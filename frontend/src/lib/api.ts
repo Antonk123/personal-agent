@@ -92,6 +92,12 @@ class ApiClient {
   }
 
   // Memory
+  async getMemoryStats() {
+    return this.request<{ assignments: number; contacts: number; decisions: number }>(
+      "/memory/stats"
+    );
+  }
+
   async getProfile() {
     return this.request<Record<string, any>>("/memory/profile");
   }

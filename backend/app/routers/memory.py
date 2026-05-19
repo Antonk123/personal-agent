@@ -2,10 +2,12 @@ import uuid
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middleware.tenant import get_current_tenant
+from app.models.assignment import Assignment, Contact, Decision
 from app.services.memory_service import MemoryService
 
 router = APIRouter(prefix="/memory", tags=["memory"])
@@ -40,6 +42,27 @@ class ContactCreate(BaseModel):
 class DecisionCreate(BaseModel):
     summary: str
     context: str | None = None
+
+
+@router.get("/stats")
+async def get_stats(
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    assignments_count = await db.scalar(
+        select(func.count()).select_from(Assignment).where(Assignment.tenant_id == tenant_id)
+    )
+    contacts_count = await db.scalar(
+        select(func.count()).select_from(Contact).where(Contact.tenant_id == tenant_id)
+    )
+    decisions_count = await db.scalar(
+        select(func.count()).select_from(Decision).where(Decision.tenant_id == tenant_id)
+    )
+    return {
+        "assignments": int(assignments_count or 0),
+        "contacts": int(contacts_count or 0),
+        "decisions": int(decisions_count or 0),
+    }
 
 
 @router.get("/profile")

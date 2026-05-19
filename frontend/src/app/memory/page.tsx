@@ -22,16 +22,28 @@ interface Assignment {
   status: string;
 }
 
+interface MemoryStats {
+  assignments: number;
+  contacts: number;
+  decisions: number;
+}
+
 export default function MemoryPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [stats, setStats] = useState<MemoryStats | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getProfile(), api.getAssignments()])
-      .then(([p, a]) => {
+    Promise.all([
+      api.getProfile(),
+      api.getAssignments(),
+      api.getMemoryStats().catch(() => null),
+    ])
+      .then(([p, a, s]) => {
         setProfile(p as Profile);
         setAssignments((a as Assignment[]) || []);
+        setStats(s as MemoryStats | null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -53,18 +65,18 @@ export default function MemoryPage() {
             <div className="grid grid-cols-3 gap-2">
               <StatCard
                 icon={<Briefcase size={15} />}
-                value={assignments.length}
+                value={stats?.assignments ?? assignments.length}
                 label="Uppdrag"
                 href="/assignments"
               />
               <StatCard
                 icon={<Users size={15} />}
-                value="—"
+                value={stats?.contacts ?? "—"}
                 label="Kontakter"
               />
               <StatCard
                 icon={<FileText size={15} />}
-                value="—"
+                value={stats?.decisions ?? "—"}
                 label="Beslut"
               />
             </div>
