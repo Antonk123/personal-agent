@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { MessageSquarePlus, ChevronRight } from "lucide-react";
 import { ChatMessage } from "./ChatMessage";
 import { useChatStore } from "@/stores/chat-store";
+import { useChat } from "@/lib/hooks";
 
 const SUGGESTIONS = [
   "Sammanfatta vad jag jobbat med den här veckan",
@@ -26,7 +27,15 @@ function formatTime(iso: string): string {
 
 export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
   const { messages, isLoading } = useChatStore();
+  const { regenerate } = useChat();
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const lastAssistantIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === "assistant") return i;
+    }
+    return -1;
+  })();
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -76,12 +85,14 @@ export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
   return (
     <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 md:px-6">
       <div className="mx-auto max-w-[760px] space-y-3">
-        {messages.map((msg) => (
+        {messages.map((msg, idx) => (
           <ChatMessage
             key={msg.id}
             role={msg.role}
             content={msg.content}
             timestamp={formatTime(msg.created_at)}
+            isLastAssistant={idx === lastAssistantIdx && !isLoading}
+            onRegenerate={regenerate}
           />
         ))}
         {isLoading && (

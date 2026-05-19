@@ -29,6 +29,7 @@ interface ChatState {
   reset: () => void;
   renameConversation: (id: string, title: string) => void;
   removeConversation: (id: string) => void;
+  popLastAssistantMessage: () => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -56,4 +57,12 @@ export const useChatStore = create<ChatState>((set) => ({
         state.currentConversationId === id ? null : state.currentConversationId,
       messages: state.currentConversationId === id ? [] : state.messages,
     })),
+  popLastAssistantMessage: () =>
+    set((state) => {
+      const lastIdx = state.messages.length - 1;
+      if (lastIdx < 0 || state.messages[lastIdx].role !== "assistant") {
+        return state;
+      }
+      return { messages: state.messages.slice(0, lastIdx) };
+    }),
 }));

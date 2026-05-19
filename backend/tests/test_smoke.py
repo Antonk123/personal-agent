@@ -83,6 +83,13 @@ async def test_chat_send_requires_auth(client: AsyncClient):
     assert response.status_code == 401
 
 
+async def test_chat_regenerate_requires_auth(client: AsyncClient):
+    response = await client.post(
+        "/chat/conversations/00000000-0000-0000-0000-000000000000/regenerate"
+    )
+    assert response.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # Memory router — requires auth
 # ---------------------------------------------------------------------------

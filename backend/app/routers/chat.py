@@ -40,6 +40,27 @@ async def send_message(
     return ChatResponse(**result)
 
 
+@router.post("/conversations/{conversation_id}/regenerate", response_model=ChatResponse)
+async def regenerate_response(
+    conversation_id: uuid.UUID,
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Regenerate the last assistant response for a conversation."""
+    service = ChatService(db)
+    try:
+        result = await service.regenerate_last(
+            tenant_id=tenant_id,
+            conversation_id=conversation_id,
+        )
+    except ValueError as exc:
+        reason = str(exc)
+        if reason == "conversation_not_found":
+            raise HTTPException(status_code=404, detail="Conversation not found") from exc
+        raise HTTPException(status_code=400, detail="No user message to regenerate from") from exc
+    return ChatResponse(**result)
+
+
 @router.get("/conversations")
 async def list_conversations(
     tenant_id: uuid.UUID = Depends(get_current_tenant),

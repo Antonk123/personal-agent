@@ -13,6 +13,7 @@ export function useChat() {
     setError,
     setMessages,
     setConversations,
+    popLastAssistantMessage,
   } = useChatStore();
 
   const sendMessage = useCallback(
@@ -72,5 +73,47 @@ export function useChat() {
     }
   }, [setConversations]);
 
-  return { sendMessage, loadConversation, loadConversations };
+  const regenerate = useCallback(async () => {
+    if (!currentConversationId) return;
+    const conversationId = currentConversationId;
+
+    popLastAssistantMessage();
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await api.regenerateResponse(conversationId);
+      addMessage({
+        id: `msg-${Date.now()}`,
+        role: "assistant",
+        content: result.response,
+        created_at: new Date().toISOString(),
+      });
+    } catch (err) {
+      setError("Kunde inte regenerera svaret. Försök igen.");
+      // Refetch truth from server so the UI doesn't drift.
+      try {
+        const messages = await api.getMessages(conversationId);
+        setMessages(
+          messages.map((m) => ({
+            ...m,
+            role: m.role as "user" | "assistant",
+          })),
+        );
+      } catch {
+        // Swallow — error message already surfaced.
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    currentConversationId,
+    popLastAssistantMessage,
+    addMessage,
+    setLoading,
+    setError,
+    setMessages,
+  ]);
+
+  return { sendMessage, loadConversation, loadConversations, regenerate };
 }

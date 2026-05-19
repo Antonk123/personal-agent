@@ -29,6 +29,47 @@ class ChatService:
         except Exception:
             pass  # Don't fail chat if extraction fails
 
+    async def _complete_turn(
+        self,
+        tenant_id: uuid.UUID,
+        conversation: Conversation,
+        latest_user_message: str,
+    ) -> dict:
+        """Run the LLM turn for a conversation whose latest user message is already persisted.
+
+        Builds the system prompt + history, calls the model, stores the assistant reply,
+        triggers extraction, and returns the standard chat response shape.
+        """
+        history = await self._get_history(conversation.id)
+
+        system_prompt = await self.context_builder.build_system_prompt(
+            tenant_id, latest_user_message
+        )
+
+        llm_messages = [{"role": m.role, "content": m.content} for m in history]
+
+        response = await self._generate_response(system_prompt, llm_messages)
+
+        assistant_msg = Message(
+            conversation_id=conversation.id,
+            tenant_id=tenant_id,
+            role="assistant",
+            content=response.content,
+            metadata_={"model": response.model, "tokens": response.total_tokens},
+        )
+        self.db.add(assistant_msg)
+        await self.db.flush()
+
+        recent = [{"role": m.role, "content": m.content} for m in history[-3:]]
+        recent.append({"role": "assistant", "content": response.content})
+        await self._run_extraction(tenant_id, recent)
+
+        return {
+            "conversation_id": str(conversation.id),
+            "response": response.content,
+            "tokens_used": response.total_tokens,
+        }
+
     async def send_message(
         self,
         tenant_id: uuid.UUID,
@@ -51,39 +92,46 @@ class ChatService:
         self.db.add(user_msg)
         await self.db.flush()
 
-        # Get conversation history
-        history = await self._get_history(conversation.id)
+        return await self._complete_turn(tenant_id, conversation, message)
 
-        # Build system prompt with context
-        system_prompt = await self.context_builder.build_system_prompt(tenant_id, message)
+    async def regenerate_last(
+        self,
+        tenant_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+    ) -> dict:
+        """Regenerate the most recent assistant response for a conversation.
 
-        # Format messages for LLM
-        llm_messages = [{"role": m.role, "content": m.content} for m in history]
-
-        # Generate response
-        response = await self._generate_response(system_prompt, llm_messages)
-
-        # Store assistant message
-        assistant_msg = Message(
-            conversation_id=conversation.id,
-            tenant_id=tenant_id,
-            role="assistant",
-            content=response.content,
-            metadata_={"model": response.model, "tokens": response.total_tokens},
+        Deletes the trailing assistant message (if present), keeps the trailing
+        user message in place, and re-runs the LLM turn. Raises ValueError if
+        the conversation does not exist for the tenant or has no user message.
+        """
+        result = await self.db.execute(
+            select(Conversation).where(
+                Conversation.id == conversation_id,
+                Conversation.tenant_id == tenant_id,
+            )
         )
-        self.db.add(assistant_msg)
+        conversation = result.scalar_one_or_none()
+        if not conversation:
+            raise ValueError("conversation_not_found")
+
+        history = await self._get_history(conversation_id, limit=200)
+        if not history:
+            raise ValueError("no_user_message")
+
+        # Strip trailing assistant message(s) so the conversation ends on the
+        # user's last turn before we re-run the model.
+        while history and history[-1].role == "assistant":
+            last = history.pop()
+            await self.db.delete(last)
+
+        if not history or history[-1].role != "user":
+            raise ValueError("no_user_message")
+
         await self.db.flush()
 
-        # Run extraction on recent messages
-        recent = [{"role": m.role, "content": m.content} for m in history[-3:]]
-        recent.append({"role": "assistant", "content": response.content})
-        await self._run_extraction(tenant_id, recent)
-
-        return {
-            "conversation_id": str(conversation.id),
-            "response": response.content,
-            "tokens_used": response.total_tokens,
-        }
+        latest_user_message = history[-1].content
+        return await self._complete_turn(tenant_id, conversation, latest_user_message)
 
     async def _create_conversation(self, tenant_id: uuid.UUID) -> Conversation:
         conversation = Conversation(tenant_id=tenant_id)

@@ -70,6 +70,15 @@ class ApiClient {
     >(`/chat/conversations/${conversationId}/messages`);
   }
 
+  async regenerateResponse(conversationId: string) {
+    return this.request<{ conversation_id: string; response: string; tokens_used: number }>(
+      `/chat/conversations/${conversationId}/regenerate`,
+      {
+        method: "POST",
+      },
+    );
+  }
+
   async renameConversation(conversationId: string, title: string) {
     return this.request<{ id: string; title: string }>(
       `/chat/conversations/${conversationId}`,
