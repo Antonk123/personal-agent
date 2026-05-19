@@ -18,10 +18,18 @@ class ChatRequest(BaseModel):
     conversation_id: str | None = None
 
 
+class RefItem(BaseModel):
+    type: str
+    id: str
+    label: str
+
+
 class ChatResponse(BaseModel):
     conversation_id: str
     response: str
     tokens_used: int
+    refs: list[RefItem] = []
+    message_id: str | None = None
 
 
 @router.post("/", response_model=ChatResponse)
@@ -61,6 +69,17 @@ async def regenerate_response(
     return ChatResponse(**result)
 
 
+@router.post("/conversations/backfill-titles")
+async def backfill_titles(
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generera titlar för konversationer utan titel (för tenant)."""
+    service = ChatService(db)
+    count = await service.backfill_titles(tenant_id)
+    return {"updated": count}
+
+
 @router.get("/conversations")
 async def list_conversations(
     tenant_id: uuid.UUID = Depends(get_current_tenant),
@@ -88,6 +107,7 @@ async def get_messages(
             "role": m.role,
             "content": m.content,
             "created_at": m.created_at.isoformat(),
+            "refs": (m.metadata_ or {}).get("refs", []) if m.role == "assistant" else [],
         }
         for m in messages
     ]

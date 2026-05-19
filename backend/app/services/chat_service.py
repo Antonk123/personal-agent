@@ -1,3 +1,4 @@
+import logging
 import uuid
 
 from sqlalchemy import select
@@ -10,6 +11,15 @@ from app.models.conversation import Conversation, Message
 from app.services.context_builder import ContextBuilder
 from app.services.extraction_service import ExtractionService
 
+logger = logging.getLogger(__name__)
+
+TITLE_MODEL = "claude-haiku-4-5-20251001"
+TITLE_PROMPT = (
+    "Du genererar en kort, beskrivande titel (3-6 ord, svenska) "
+    "för en konversation. Returnera ENDAST titeln, ingen punkt, "
+    "inga citattecken, ingen prefix som 'Titel:'."
+)
+
 
 class ChatService:
     def __init__(self, db: AsyncSession):
@@ -21,6 +31,42 @@ class ChatService:
         """Generate LLM response."""
         adapter = ClaudeAdapter(api_key=settings.anthropic_api_key, model=settings.default_model)
         return await adapter.generate(system_prompt=system_prompt, messages=messages)
+
+    async def _generate_title(self, first_user: str, first_assistant: str) -> str | None:
+        """Generate a short conversation title via Haiku. Returns None on failure."""
+        try:
+            adapter = ClaudeAdapter(api_key=settings.anthropic_api_key, model=TITLE_MODEL)
+            seed = (
+                f"Användarens första meddelande:\n{first_user[:600]}\n\n"
+                f"Agentens första svar:\n{first_assistant[:600]}"
+            )
+            response = await adapter.generate(
+                system_prompt=TITLE_PROMPT,
+                messages=[{"role": "user", "content": seed}],
+                max_tokens=40,
+                temperature=0.3,
+                tools=None,
+            )
+            title = response.content.strip().strip('"').strip("'").rstrip(".")
+            return title[:80] if title else None
+        except Exception as exc:
+            logger.warning("Title generation failed: %s", exc)
+            return None
+
+    async def _maybe_set_title(
+        self, conversation: Conversation, history: list[Message], assistant_text: str
+    ) -> None:
+        """If the conversation is freshly named and we just completed the first turn,
+        generate a title. Best-effort: never raises."""
+        if conversation.title:
+            return
+        first_user = next((m.content for m in history if m.role == "user"), None)
+        if not first_user:
+            return
+        title = await self._generate_title(first_user, assistant_text)
+        if title:
+            conversation.title = title
+            await self.db.flush()
 
     async def _run_extraction(self, tenant_id: uuid.UUID, messages: list[dict]):
         """Run memory extraction."""
@@ -42,7 +88,7 @@ class ChatService:
         """
         history = await self._get_history(conversation.id)
 
-        system_prompt = await self.context_builder.build_system_prompt(
+        system_prompt, refs = await self.context_builder.build_with_refs(
             tenant_id, latest_user_message
         )
 
@@ -55,7 +101,11 @@ class ChatService:
             tenant_id=tenant_id,
             role="assistant",
             content=response.content,
-            metadata_={"model": response.model, "tokens": response.total_tokens},
+            metadata_={
+                "model": response.model,
+                "tokens": response.total_tokens,
+                "refs": refs,
+            },
         )
         self.db.add(assistant_msg)
         await self.db.flush()
@@ -64,10 +114,16 @@ class ChatService:
         recent.append({"role": "assistant", "content": response.content})
         await self._run_extraction(tenant_id, recent)
 
+        # Auto-rename if this was the first turn (history before assistant_msg had
+        # only the just-stored user message).
+        await self._maybe_set_title(conversation, history, response.content)
+
         return {
             "conversation_id": str(conversation.id),
             "response": response.content,
             "tokens_used": response.total_tokens,
+            "refs": refs,
+            "message_id": str(assistant_msg.id),
         }
 
     async def send_message(
@@ -182,3 +238,27 @@ class ChatService:
             .order_by(Message.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def backfill_titles(self, tenant_id: uuid.UUID) -> int:
+        """Generera titel för alla konversationer utan titel (best-effort)."""
+        result = await self.db.execute(
+            select(Conversation).where(
+                Conversation.tenant_id == tenant_id,
+                Conversation.title.is_(None),
+            )
+        )
+        conversations = list(result.scalars().all())
+        updated = 0
+        for conv in conversations:
+            history = await self._get_history(conv.id, limit=4)
+            first_user = next((m.content for m in history if m.role == "user"), None)
+            first_assistant = next((m.content for m in history if m.role == "assistant"), None)
+            if not first_user or not first_assistant:
+                continue
+            title = await self._generate_title(first_user, first_assistant)
+            if title:
+                conv.title = title
+                updated += 1
+        if updated:
+            await self.db.commit()
+        return updated

@@ -4,6 +4,20 @@ import anthropic
 
 from app.llm.adapter import LLMAdapter, LLMResponse
 
+# Server-side tools auto-executed by the API. Web search runs on Anthropic's
+# infrastructure; we just opt in via the tool declaration and read the final
+# text blocks back from response.content.
+DEFAULT_TOOLS = [{"type": "web_search_20250305", "name": "web_search"}]
+
+
+def _extract_text(content_blocks) -> str:
+    """Concatenate text from response content blocks, ignoring tool-use blocks."""
+    parts: list[str] = []
+    for block in content_blocks:
+        if getattr(block, "type", None) == "text":
+            parts.append(block.text)
+    return "".join(parts).strip()
+
 
 class ClaudeAdapter(LLMAdapter):
     def __init__(self, api_key: str, model: str = "claude-sonnet-4-6"):
@@ -16,17 +30,22 @@ class ClaudeAdapter(LLMAdapter):
         messages: list[dict],
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        tools: list[dict] | None = DEFAULT_TOOLS,
     ) -> LLMResponse:
-        response = await self.client.messages.create(
-            model=self.model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            system=system_prompt,
-            messages=messages,
-        )
+        kwargs: dict = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "system": system_prompt,
+            "messages": messages,
+        }
+        if tools:
+            kwargs["tools"] = tools
+
+        response = await self.client.messages.create(**kwargs)
 
         return LLMResponse(
-            content=response.content[0].text,
+            content=_extract_text(response.content),
             model=response.model,
             input_tokens=response.usage.input_tokens,
             output_tokens=response.usage.output_tokens,
