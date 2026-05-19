@@ -99,6 +99,40 @@ async def regenerate_response(
     return ChatResponse(**result)
 
 
+@router.post("/conversations/{conversation_id}/regenerate/stream")
+async def regenerate_response_stream(
+    conversation_id: uuid.UUID,
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Regenerate the last assistant response as SSE stream."""
+    service = ChatService(db)
+
+    async def event_generator():
+        try:
+            async for event_type, data in service.regenerate_last_stream(
+                tenant_id=tenant_id,
+                conversation_id=conversation_id,
+            ):
+                yield f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+        except ValueError as exc:
+            reason = str(exc)
+            detail = (
+                "Conversation not found"
+                if reason == "conversation_not_found"
+                else "No user message to regenerate from"
+            )
+            yield f"event: error\ndata: {json.dumps({'detail': detail})}\n\n"
+        except Exception as exc:
+            yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 @router.post("/conversations/backfill-titles")
 async def backfill_titles(
     tenant_id: uuid.UUID = Depends(get_current_tenant),

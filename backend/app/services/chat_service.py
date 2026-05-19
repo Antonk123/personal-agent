@@ -234,17 +234,13 @@ class ChatService:
             },
         )
 
-    async def regenerate_last(
+    async def _prepare_regenerate(
         self,
         tenant_id: uuid.UUID,
         conversation_id: uuid.UUID,
-    ) -> dict:
-        """Regenerate the most recent assistant response for a conversation.
-
-        Deletes the trailing assistant message (if present), keeps the trailing
-        user message in place, and re-runs the LLM turn. Raises ValueError if
-        the conversation does not exist for the tenant or has no user message.
-        """
+    ) -> tuple[Conversation, str]:
+        """Validate and prepare for regeneration: delete trailing assistant
+        messages and return (conversation, latest_user_message)."""
         result = await self.db.execute(
             select(Conversation).where(
                 Conversation.id == conversation_id,
@@ -259,8 +255,6 @@ class ChatService:
         if not history:
             raise ValueError("no_user_message")
 
-        # Strip trailing assistant message(s) so the conversation ends on the
-        # user's last turn before we re-run the model.
         while history and history[-1].role == "assistant":
             last = history.pop()
             await self.db.delete(last)
@@ -269,9 +263,84 @@ class ChatService:
             raise ValueError("no_user_message")
 
         await self.db.flush()
+        return conversation, history[-1].content
 
-        latest_user_message = history[-1].content
+    async def regenerate_last(
+        self,
+        tenant_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+    ) -> dict:
+        """Regenerate the most recent assistant response (non-streaming)."""
+        conversation, latest_user_message = await self._prepare_regenerate(
+            tenant_id, conversation_id
+        )
         return await self._complete_turn(tenant_id, conversation, latest_user_message)
+
+    async def regenerate_last_stream(
+        self,
+        tenant_id: uuid.UUID,
+        conversation_id: uuid.UUID,
+    ) -> AsyncGenerator[tuple[str, object], None]:
+        """Regenerate the most recent assistant response as SSE stream."""
+        conversation, latest_user_message = await self._prepare_regenerate(
+            tenant_id, conversation_id
+        )
+
+        yield ("meta", {"conversation_id": str(conversation.id)})
+
+        history = await self._get_history(conversation.id)
+        system_prompt, refs = await self.context_builder.build_with_refs(
+            tenant_id, latest_user_message
+        )
+        llm_messages = [{"role": m.role, "content": m.content} for m in history]
+
+        adapter = ClaudeAdapter(
+            api_key=settings.anthropic_api_key, model=settings.default_model
+        )
+        collected: list[str] = []
+
+        kwargs: dict = {
+            "model": adapter.model,
+            "max_tokens": 4096,
+            "temperature": 0.7,
+            "system": system_prompt,
+            "messages": llm_messages,
+            "tools": DEFAULT_TOOLS,
+        }
+
+        async with adapter.client.messages.stream(**kwargs) as stream:
+            async for text in stream.text_stream:
+                collected.append(text)
+                yield ("chunk", {"text": text})
+            final = await stream.get_final_message()
+
+        full_text = "".join(collected)
+        tokens = final.usage.input_tokens + final.usage.output_tokens
+
+        assistant_msg = Message(
+            conversation_id=conversation.id,
+            tenant_id=tenant_id,
+            role="assistant",
+            content=full_text,
+            metadata_={"model": final.model, "tokens": tokens, "refs": refs},
+        )
+        self.db.add(assistant_msg)
+        await self.db.flush()
+
+        recent = [{"role": m.role, "content": m.content} for m in history[-3:]]
+        recent.append({"role": "assistant", "content": full_text})
+        await self._run_extraction(tenant_id, recent)
+        await self._maybe_set_title(conversation, history, full_text)
+
+        yield (
+            "done",
+            {
+                "conversation_id": str(conversation.id),
+                "message_id": str(assistant_msg.id),
+                "refs": refs,
+                "tokens_used": tokens,
+            },
+        )
 
     async def _create_conversation(self, tenant_id: uuid.UUID) -> Conversation:
         conversation = Conversation(tenant_id=tenant_id)

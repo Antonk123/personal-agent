@@ -113,21 +113,51 @@ export function useChat() {
     const conversationId = currentConversationId;
 
     popLastAssistantMessage();
+    addMessage({ id: `stream-${Date.now()}`, role: "assistant", content: "", created_at: new Date().toISOString() });
     setLoading(true);
     setError(null);
 
     try {
-      const result = await api.regenerateResponse(conversationId);
-      addMessage({
-        id: result.message_id || `msg-${Date.now()}`,
-        role: "assistant",
-        content: result.response,
-        created_at: new Date().toISOString(),
-        refs: result.refs,
-      });
+      const response = await api.regenerateResponseStream(conversationId);
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        while (true) {
+          const boundary = buffer.indexOf("\n\n");
+          if (boundary === -1) break;
+
+          const block = buffer.slice(0, boundary);
+          buffer = buffer.slice(boundary + 2);
+
+          let eventType = "";
+          let eventData = "";
+          for (const line of block.split("\n")) {
+            if (line.startsWith("event: ")) eventType = line.slice(7);
+            else if (line.startsWith("data: ")) eventData = line.slice(6);
+          }
+
+          if (!eventType || !eventData) continue;
+
+          const parsed = JSON.parse(eventData);
+
+          if (eventType === "chunk") {
+            appendToLastMessage(parsed.text);
+          } else if (eventType === "done") {
+            updateLastMessageMeta({ id: parsed.message_id, refs: parsed.refs });
+          } else if (eventType === "error") {
+            setError(parsed.detail || "Kunde inte regenerera svaret.");
+          }
+        }
+      }
     } catch (err) {
       setError("Kunde inte regenerera svaret. Försök igen.");
-      // Refetch truth from server so the UI doesn't drift.
       try {
         const messages = await api.getMessages(conversationId);
         setMessages(
@@ -152,6 +182,8 @@ export function useChat() {
     setLoading,
     setError,
     setMessages,
+    appendToLastMessage,
+    updateLastMessageMeta,
   ]);
 
   return { sendMessage, loadConversation, loadConversations, regenerate };

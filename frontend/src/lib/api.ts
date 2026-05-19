@@ -125,6 +125,29 @@ class ApiClient {
     });
   }
 
+  async regenerateResponseStream(conversationId: string): Promise<Response> {
+    const token = this.getToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_URL}/chat/conversations/${conversationId}/regenerate/stream`, {
+      method: "POST",
+      headers,
+    });
+
+    if (response.status === 401) {
+      localStorage.removeItem("session_token");
+      window.location.href = "/auth/login";
+      throw new Error("Unauthorized");
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response;
+  }
+
   async backfillTitles() {
     return this.request<{ updated: number }>("/chat/conversations/backfill-titles", {
       method: "POST",
