@@ -32,10 +32,11 @@ export function useChat() {
         }
 
         addMessage({
-          id: `msg-${Date.now()}`,
+          id: result.message_id || `msg-${Date.now()}`,
           role: "assistant",
           content: result.response,
           created_at: new Date().toISOString(),
+          refs: result.refs,
         });
       } catch (err) {
         setError("Kunde inte skicka meddelandet. Försök igen.");
@@ -53,8 +54,11 @@ export function useChat() {
         const messages = await api.getMessages(conversationId);
         setMessages(
           messages.map((m) => ({
-            ...m,
+            id: m.id,
             role: m.role as "user" | "assistant",
+            content: m.content,
+            created_at: m.created_at,
+            refs: m.refs,
           }))
         );
       } catch (err) {
@@ -84,10 +88,11 @@ export function useChat() {
     try {
       const result = await api.regenerateResponse(conversationId);
       addMessage({
-        id: `msg-${Date.now()}`,
+        id: result.message_id || `msg-${Date.now()}`,
         role: "assistant",
         content: result.response,
         created_at: new Date().toISOString(),
+        refs: result.refs,
       });
     } catch (err) {
       setError("Kunde inte regenerera svaret. Försök igen.");
@@ -96,8 +101,11 @@ export function useChat() {
         const messages = await api.getMessages(conversationId);
         setMessages(
           messages.map((m) => ({
-            ...m,
+            id: m.id,
             role: m.role as "user" | "assistant",
+            content: m.content,
+            created_at: m.created_at,
+            refs: m.refs,
           })),
         );
       } catch {

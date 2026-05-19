@@ -1,10 +1,17 @@
 import { create } from "zustand";
 
-interface Message {
+export interface MessageRef {
+  type: string;
+  id: string;
+  label: string;
+}
+
+export interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   created_at: string;
+  refs?: MessageRef[];
 }
 
 interface Conversation {

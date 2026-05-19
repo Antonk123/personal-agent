@@ -93,6 +93,7 @@ export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
             timestamp={formatTime(msg.created_at)}
             isLastAssistant={idx === lastAssistantIdx && !isLoading}
             onRegenerate={regenerate}
+            refs={msg.refs}
           />
         ))}
         {isLoading && (

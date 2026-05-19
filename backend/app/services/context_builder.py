@@ -14,11 +14,22 @@ class ContextBuilder:
         self.retrieval_service = RetrievalService(db)
 
     async def build_system_prompt(self, tenant_id: uuid.UUID, user_message: str) -> str:
-        """Build a complete system prompt with all relevant context."""
+        """Backward-compatible: returns only the prompt."""
+        prompt, _ = await self.build_with_refs(tenant_id, user_message)
+        return prompt
+
+    async def build_with_refs(
+        self, tenant_id: uuid.UUID, user_message: str
+    ) -> tuple[str, list[dict]]:
+        """Build system prompt AND list of refs that were injected.
+
+        Each ref is `{type, id, label}` and represents a memory item the agent had
+        access to when generating the response. Used for per-message reference
+        rendering in the UI.
+        """
         profile = await self.memory_service.get_profile(tenant_id)
         assignments = await self.memory_service.list_assignments(tenant_id, status="active")
 
-        # Retrieve relevant context
         try:
             retrieved = await self.retrieval_service.retrieve_context(tenant_id, user_message)
         except Exception:
@@ -37,7 +48,7 @@ class ContextBuilder:
         if profile and profile.services:
             role_context += f" Tjänster: {', '.join(profile.services)}."
 
-        return SYSTEM_PROMPT_TEMPLATE.format(
+        prompt = SYSTEM_PROMPT_TEMPLATE.format(
             user_name=user_name,
             company_name=company_name,
             role_context=role_context,
@@ -46,6 +57,32 @@ class ContextBuilder:
             retrieved_context=retrieved_context,
             preference_instructions=preference_instructions,
         )
+
+        refs = self._collect_refs(assignments, retrieved)
+        return prompt, refs
+
+    def _collect_refs(self, assignments, retrieved: list[dict]) -> list[dict]:
+        """Dedupe and produce frontend-friendly ref dicts."""
+        seen: set[tuple[str, str]] = set()
+        refs: list[dict] = []
+        for a in assignments:
+            key = ("assignment", str(a.id))
+            if key in seen:
+                continue
+            seen.add(key)
+            refs.append({"type": "assignment", "id": str(a.id), "label": a.name})
+        for r in retrieved:
+            key = (r.get("type", "memory"), r.get("entity_id", ""))
+            if not key[1] or key in seen:
+                continue
+            seen.add(key)
+            label = r.get("content", "")
+            # short label: first chunk after colon, else first 60 chars
+            if ":" in label:
+                label = label.split(":", 1)[1].split("|", 1)[0].strip()
+            label = label[:80]
+            refs.append({"type": r["type"], "id": r["entity_id"], "label": label})
+        return refs
 
     def _format_profile(self, profile) -> str:
         if not profile:

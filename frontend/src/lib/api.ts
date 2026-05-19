@@ -49,13 +49,16 @@ class ApiClient {
 
   // Chat
   async sendMessage(message: string, conversationId?: string) {
-    return this.request<{ conversation_id: string; response: string; tokens_used: number }>(
-      "/chat/",
-      {
-        method: "POST",
-        body: JSON.stringify({ message, conversation_id: conversationId }),
-      }
-    );
+    return this.request<{
+      conversation_id: string;
+      response: string;
+      tokens_used: number;
+      refs: Array<{ type: string; id: string; label: string }>;
+      message_id?: string;
+    }>("/chat/", {
+      method: "POST",
+      body: JSON.stringify({ message, conversation_id: conversationId }),
+    });
   }
 
   async getConversations() {
@@ -66,17 +69,32 @@ class ApiClient {
 
   async getMessages(conversationId: string) {
     return this.request<
-      Array<{ id: string; role: string; content: string; created_at: string }>
+      Array<{
+        id: string;
+        role: string;
+        content: string;
+        created_at: string;
+        refs?: Array<{ type: string; id: string; label: string }>;
+      }>
     >(`/chat/conversations/${conversationId}/messages`);
   }
 
   async regenerateResponse(conversationId: string) {
-    return this.request<{ conversation_id: string; response: string; tokens_used: number }>(
-      `/chat/conversations/${conversationId}/regenerate`,
-      {
-        method: "POST",
-      },
-    );
+    return this.request<{
+      conversation_id: string;
+      response: string;
+      tokens_used: number;
+      refs: Array<{ type: string; id: string; label: string }>;
+      message_id?: string;
+    }>(`/chat/conversations/${conversationId}/regenerate`, {
+      method: "POST",
+    });
+  }
+
+  async backfillTitles() {
+    return this.request<{ updated: number }>("/chat/conversations/backfill-titles", {
+      method: "POST",
+    });
   }
 
   async renameConversation(conversationId: string, title: string) {

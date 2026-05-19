@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Copy, Check, RefreshCw } from "lucide-react";
+import { Copy, Check, RefreshCw, Briefcase, User as UserIcon, FileText } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
+import type { MessageRef } from "@/stores/chat-store";
 import { cn } from "@/lib/cn";
 
 interface ChatMessageProps {
@@ -13,6 +15,7 @@ interface ChatMessageProps {
   timestamp?: string;
   isLastAssistant?: boolean;
   onRegenerate?: () => void;
+  refs?: MessageRef[];
 }
 
 export function ChatMessage({
@@ -21,6 +24,7 @@ export function ChatMessage({
   timestamp,
   isLastAssistant = false,
   onRegenerate,
+  refs,
 }: ChatMessageProps) {
   const isUser = role === "user";
   const [copied, setCopied] = useState(false);
@@ -53,6 +57,7 @@ export function ChatMessage({
   return (
     <div className="group animate-fade-in">
       <Markdown content={content} />
+      {refs && refs.length > 0 && <RefList refs={refs} />}
       <div
         className={cn(
           "mt-2 flex items-center gap-1 text-[11px] text-fg-subtle font-mono",
@@ -71,6 +76,75 @@ export function ChatMessage({
       </div>
     </div>
   );
+}
+
+function RefList({ refs }: { refs: MessageRef[] }) {
+  // Cap to 8 visible to avoid clutter
+  const visible = refs.slice(0, 8);
+  const extra = refs.length - visible.length;
+  return (
+    <div className="mt-2.5 flex flex-wrap gap-1">
+      {visible.map((r) => (
+        <RefPill key={`${r.type}:${r.id}`} ref_={r} />
+      ))}
+      {extra > 0 && (
+        <span className="inline-flex items-center px-2 h-6 rounded-full bg-surface-2 text-[11px] text-fg-subtle font-mono">
+          +{extra}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function RefPill({ ref_ }: { ref_: MessageRef }) {
+  const { icon, href, tone } = refMeta(ref_);
+  const body = (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1 px-2 h-6 rounded-full text-[11.5px] max-w-[220px]",
+        tone,
+        href && "hover:bg-surface-3 transition-colors",
+      )}
+      title={ref_.label}
+    >
+      {icon}
+      <span className="truncate">{ref_.label}</span>
+    </span>
+  );
+  if (href) {
+    return (
+      <Link href={href} className="contents">
+        {body}
+      </Link>
+    );
+  }
+  return body;
+}
+
+function refMeta(r: MessageRef): { icon: React.ReactNode; href: string | null; tone: string } {
+  const base = "bg-surface-2 text-fg-muted border border-border";
+  switch (r.type) {
+    case "assignment":
+      return {
+        icon: <Briefcase size={11} className="text-fg-subtle shrink-0" />,
+        href: `/assignments/${r.id}`,
+        tone: base,
+      };
+    case "contact":
+      return {
+        icon: <UserIcon size={11} className="text-fg-subtle shrink-0" />,
+        href: null,
+        tone: base,
+      };
+    case "decision":
+    case "memory":
+    default:
+      return {
+        icon: <FileText size={11} className="text-fg-subtle shrink-0" />,
+        href: null,
+        tone: base,
+      };
+  }
 }
 
 function Markdown({ content }: { content: string }) {
