@@ -8,9 +8,17 @@ behöva en riktig Postgres-instans.
 
 ```bash
 cd backend
-uv pip install -e ".[dev]"   # eller: pip install -e ".[dev]"
-pytest
+python3 -m venv .venv
+./.venv/bin/pip install -r <(python3 -c "import tomllib,sys; d=tomllib.load(open('pyproject.toml','rb')); print('\n'.join(d['project']['dependencies'] + d['project']['optional-dependencies']['dev']))")
+./.venv/bin/pytest
 ```
+
+Vi installerar inte paketet självt (`pip install .`) eftersom flat-layout
+(`app/` + `alembic/` + `tests/` på top-level) krockar med setuptools'
+auto-discovery. Istället sätter `pyproject.toml` `pythonpath = ["."]` i
+pytest-konfigen så `app` är importerbar utan install. Dockerfile gör
+samma sak — kopierar `pyproject.toml` separat, installerar deps, sen
+COPY:ar resten.
 
 För verbose output och första-fel-stopp:
 
