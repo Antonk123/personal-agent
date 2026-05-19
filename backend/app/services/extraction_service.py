@@ -1,4 +1,5 @@
 import json
+import logging
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +10,8 @@ from app.llm.prompts import EXTRACTION_PROMPT
 from app.models.memory import MemoryFragment
 from app.services.memory_service import MemoryService
 from app.utils.embeddings import generate_embedding
+
+logger = logging.getLogger(__name__)
 
 
 class ExtractionService:
@@ -41,7 +44,12 @@ class ExtractionService:
                 cleaned = cleaned.split("\n", 1)[1]
                 cleaned = cleaned.rsplit("```", 1)[0]
             extracted = json.loads(cleaned)
-        except (json.JSONDecodeError, IndexError):
+        except (json.JSONDecodeError, IndexError) as exc:
+            logger.warning(
+                "Extraction JSON parse failed: %s | raw response start: %r",
+                exc,
+                raw_response[:200],
+            )
             return {"error": "Failed to parse extraction response"}
 
         await self._apply_extractions(tenant_id, extracted)
@@ -70,9 +78,19 @@ class ExtractionService:
             await self.memory_service.create_assignment(tenant_id, assignment_data)
 
         # Memory fragments (with embeddings)
-        for fragment_data in extracted.get("memory_fragments", []):
+        fragments_in = extracted.get("memory_fragments", [])
+        fragments_saved = 0
+        for fragment_data in fragments_in:
             try:
                 embedding = await generate_embedding(fragment_data["content"])
+            except Exception as exc:
+                logger.warning(
+                    "Embedding failed (memory_fragment dropped — content: %r): %s",
+                    fragment_data.get("content", "")[:100],
+                    exc,
+                )
+                continue
+            try:
                 fragment = MemoryFragment(
                     tenant_id=tenant_id,
                     content=fragment_data["content"],
@@ -80,8 +98,16 @@ class ExtractionService:
                     embedding=embedding,
                 )
                 self.db.add(fragment)
-            except Exception:
-                pass  # Skip if embedding fails
+                fragments_saved += 1
+            except Exception as exc:
+                logger.warning("MemoryFragment insert failed: %s", exc)
+        if fragments_in:
+            logger.info(
+                "Extraction: %d/%d memory_fragments saved (tenant=%s)",
+                fragments_saved,
+                len(fragments_in),
+                tenant_id,
+            )
 
         # Profile updates
         profile_updates = extracted.get("profile_updates", {})

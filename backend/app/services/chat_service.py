@@ -69,11 +69,13 @@ class ChatService:
             await self.db.flush()
 
     async def _run_extraction(self, tenant_id: uuid.UUID, messages: list[dict]):
-        """Run memory extraction."""
+        """Run memory extraction. Failures must not break chat — log them loudly."""
         try:
             await self.extraction_service.extract(tenant_id, messages)
-        except Exception:
-            pass  # Don't fail chat if extraction fails
+        except Exception as exc:
+            logger.warning(
+                "Extraction failed for tenant %s: %s", tenant_id, exc, exc_info=True
+            )
 
     async def _complete_turn(
         self,

@@ -1,11 +1,22 @@
+import logging
+import re
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.assignment import Assignment, Contact
+from app.models.assignment import Assignment, Contact, Decision
 from app.models.memory import MemoryFragment
 from app.utils.embeddings import generate_embedding
+
+logger = logging.getLogger(__name__)
+
+
+def _keywords(text: str, min_len: int = 4) -> list[str]:
+    """Plocka ut nyckelord ur query för LIKE-sökning."""
+    tokens = re.findall(r"\w+", text.lower())
+    stop = {"och", "att", "med", "för", "den", "det", "som", "vad", "hur", "har", "kan"}
+    return [t for t in tokens if len(t) >= min_len and t not in stop]
 
 
 class RetrievalService:
@@ -17,11 +28,17 @@ class RetrievalService:
         return await generate_embedding(text)
 
     async def entity_search(self, tenant_id: uuid.UUID, query: str) -> list[dict]:
-        """Search for known entities mentioned in the query."""
+        """Search for known entities mentioned in the query.
+
+        Matchar både exakt-substring (assignment-namn) och nyckelord (decisions,
+        contacts, fragments) så att även frågor som inte använder entiteters
+        kanoniska namn kan surfa relevant kontext.
+        """
         results = []
         query_lower = query.lower()
+        keywords = _keywords(query)
 
-        # Search assignments
+        # Assignments — namn-substring som tidigare
         assignments = await self.db.execute(
             select(Assignment).where(
                 Assignment.tenant_id == tenant_id, Assignment.status == "active"
@@ -41,12 +58,15 @@ class RetrievalService:
                     }
                 )
 
-        # Search contacts
+        # Contacts — namn-substring + nyckelord mot namn/företag
         contacts = await self.db.execute(
             select(Contact).where(Contact.tenant_id == tenant_id)
         )
         for contact in contacts.scalars():
-            if contact.name.lower() in query_lower:
+            blob = f"{contact.name} {contact.company or ''}".lower()
+            hit_by_name = contact.name.lower() in query_lower
+            hit_by_kw = any(kw in blob for kw in keywords)
+            if hit_by_name or hit_by_kw:
                 results.append(
                     {
                         "type": "contact",
@@ -54,8 +74,52 @@ class RetrievalService:
                             f"Kontakt: {contact.name} | Företag: {contact.company or 'ej angivet'} | "
                             f"Roll: {contact.role or 'ej angiven'}"
                         ),
-                        "relevance": 1.0,
+                        "relevance": 1.0 if hit_by_name else 0.6,
                         "entity_id": str(contact.id),
+                    }
+                )
+
+        # Decisions — text-sök på summary/context (fungerar utan embeddings)
+        if keywords:
+            ilike_clauses = []
+            for kw in keywords[:8]:
+                like = f"%{kw}%"
+                ilike_clauses.append(Decision.summary.ilike(like))
+                ilike_clauses.append(Decision.context.ilike(like))
+            decisions = await self.db.execute(
+                select(Decision)
+                .where(Decision.tenant_id == tenant_id, or_(*ilike_clauses))
+                .limit(5)
+            )
+            for d in decisions.scalars():
+                results.append(
+                    {
+                        "type": "decision",
+                        "content": (
+                            f"Beslut: {d.summary}"
+                            + (f" | Kontext: {d.context}" if d.context else "")
+                        ),
+                        "relevance": 0.7,
+                        "entity_id": str(d.id),
+                    }
+                )
+
+        # Memory fragments — text-sök på content (fallback när embeddings saknas)
+        if keywords:
+            frag_clauses = [MemoryFragment.content.ilike(f"%{kw}%") for kw in keywords[:8]]
+            fragments = await self.db.execute(
+                select(MemoryFragment)
+                .where(MemoryFragment.tenant_id == tenant_id, or_(*frag_clauses))
+                .limit(5)
+            )
+            for f in fragments.scalars():
+                results.append(
+                    {
+                        "type": "memory",
+                        "content": f.content,
+                        "category": f.category,
+                        "relevance": 0.65,
+                        "entity_id": str(f.id),
                     }
                 )
 
@@ -96,8 +160,10 @@ class RetrievalService:
         semantic_results = []
         try:
             semantic_results = await self.semantic_search(tenant_id, query)
-        except Exception:
-            pass  # No embeddings yet or API unavailable
+        except Exception as exc:
+            logger.info(
+                "Semantic search skipped (embeddings unavailable): %s", exc
+            )
 
         # Combine and deduplicate
         all_results = entity_results + semantic_results

@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
@@ -6,9 +7,19 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    if not settings.openai_api_key:
+        logger.warning(
+            "OPENAI_API_KEY saknas — embeddings/semantic memory är avstängda. "
+            "Sätt nyckeln i .env och starta om backenden för att aktivera "
+            "memory_fragments och semantic retrieval."
+        )
+    if not settings.anthropic_api_key:
+        logger.warning("ANTHROPIC_API_KEY saknas — chat-anrop kommer misslyckas.")
     app.state.redis = aioredis.from_url(settings.redis_url, decode_responses=True)
     yield
     await app.state.redis.close()
