@@ -6,8 +6,13 @@ from app.llm.adapter import LLMAdapter, LLMResponse
 
 # Server-side tools auto-executed by the API. Web search runs on Anthropic's
 # infrastructure; we just opt in via the tool declaration and read the final
-# text blocks back from response.content.
-DEFAULT_TOOLS = [{"type": "web_search_20250305", "name": "web_search"}]
+# text blocks back from response.content. `max_uses` caps how many times the
+# model can call the tool in a single turn — bursts of 5+ sequential searches
+# get expensive fast (each search ≈ 1-2k tokens of injected content + a
+# per-search fee), and the user almost never benefits from more than 2-3.
+DEFAULT_TOOLS = [
+    {"type": "web_search_20250305", "name": "web_search", "max_uses": 3}
+]
 
 
 def _extract_text(content_blocks) -> str:
