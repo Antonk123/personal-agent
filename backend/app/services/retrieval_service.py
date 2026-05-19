@@ -38,14 +38,31 @@ class RetrievalService:
         query_lower = query.lower()
         keywords = _keywords(query)
 
-        # Assignments — namn-substring som tidigare
+        # Assignments — namn-substring som tidigare. Bredda till keyword-match
+        # mot name/role/client/phase så att frågor som inte använder uppdragets
+        # exakta namn också kan surfa det.
+        matched_assignment_ids: set[uuid.UUID] = set()
         assignments = await self.db.execute(
             select(Assignment).where(
                 Assignment.tenant_id == tenant_id, Assignment.status == "active"
             )
         )
         for assignment in assignments.scalars():
-            if assignment.name.lower() in query_lower:
+            blob = " ".join(
+                filter(
+                    None,
+                    [
+                        assignment.name,
+                        assignment.role or "",
+                        assignment.client or "",
+                        assignment.phase or "",
+                    ],
+                )
+            ).lower()
+            hit_by_name = assignment.name.lower() in query_lower
+            hit_by_kw = any(kw in blob for kw in keywords)
+            if hit_by_name or hit_by_kw:
+                matched_assignment_ids.add(assignment.id)
                 results.append(
                     {
                         "type": "assignment",
@@ -53,28 +70,51 @@ class RetrievalService:
                             f"Uppdrag: {assignment.name} | Roll: {assignment.role or 'ej angiven'} | "
                             f"Beställare: {assignment.client or 'ej angiven'} | Fas: {assignment.phase or 'ej angiven'}"
                         ),
-                        "relevance": 1.0,
+                        "relevance": 1.0 if hit_by_name else 0.7,
                         "entity_id": str(assignment.id),
                     }
                 )
 
-        # Contacts — namn-substring + nyckelord mot namn/företag
+        # Contacts — direkt-match (namn/företag/notes) + transitiv match
+        # via länkat assignment (om en assignment surfades så följ med dess
+        # kontakter, även om kontaktens egna fält inte matchar nyckelord).
         contacts = await self.db.execute(
             select(Contact).where(Contact.tenant_id == tenant_id)
         )
         for contact in contacts.scalars():
-            blob = f"{contact.name} {contact.company or ''}".lower()
+            blob = " ".join(
+                filter(
+                    None,
+                    [
+                        contact.name,
+                        contact.company or "",
+                        contact.role or "",
+                        contact.notes or "",
+                    ],
+                )
+            ).lower()
             hit_by_name = contact.name.lower() in query_lower
             hit_by_kw = any(kw in blob for kw in keywords)
-            if hit_by_name or hit_by_kw:
+            hit_by_assignment = (
+                contact.assignment_id is not None
+                and contact.assignment_id in matched_assignment_ids
+            )
+            if hit_by_name or hit_by_kw or hit_by_assignment:
+                if hit_by_name:
+                    relevance = 1.0
+                elif hit_by_kw:
+                    relevance = 0.6
+                else:
+                    relevance = 0.5
                 results.append(
                     {
                         "type": "contact",
                         "content": (
                             f"Kontakt: {contact.name} | Företag: {contact.company or 'ej angivet'} | "
                             f"Roll: {contact.role or 'ej angiven'}"
+                            + (f" | Anteckning: {contact.notes}" if contact.notes else "")
                         ),
-                        "relevance": 1.0 if hit_by_name else 0.6,
+                        "relevance": relevance,
                         "entity_id": str(contact.id),
                     }
                 )
