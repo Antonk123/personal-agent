@@ -24,6 +24,6 @@ class MemoryFragment(Base):
     related_assignment_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("assignments.id"), nullable=True
     )
-    embedding: Mapped[list] = mapped_column(Vector(1536))
+    embedding: Mapped[list] = mapped_column(Vector(1024))
     metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

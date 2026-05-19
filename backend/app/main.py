@@ -12,9 +12,9 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if not settings.openai_api_key:
+    if not settings.voyage_api_key:
         logger.warning(
-            "OPENAI_API_KEY saknas — embeddings/semantic memory är avstängda. "
+            "VOYAGE_API_KEY saknas — embeddings/semantic memory är avstängda. "
             "Sätt nyckeln i .env och starta om backenden för att aktivera "
             "memory_fragments och semantic retrieval."
         )

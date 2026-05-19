@@ -23,7 +23,7 @@ class Settings(BaseSettings):
 
     # LLM
     anthropic_api_key: str = ""
-    openai_api_key: str = ""
+    voyage_api_key: str = ""
     default_model: str = "claude-sonnet-4-6"
 
     # App

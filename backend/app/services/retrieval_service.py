@@ -24,8 +24,8 @@ class RetrievalService:
         self.db = db
 
     async def _get_embedding(self, text: str) -> list[float]:
-        """Get embedding for text. Separated for easy mocking in tests."""
-        return await generate_embedding(text)
+        """Get embedding for a search query. Separated for easy mocking in tests."""
+        return await generate_embedding(text, input_type="query")
 
     async def entity_search(self, tenant_id: uuid.UUID, query: str) -> list[dict]:
         """Search for known entities mentioned in the query.
