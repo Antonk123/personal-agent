@@ -2,18 +2,31 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MoreHorizontal, Pencil, Trash2, Check, X } from "lucide-react";
+import {
+  ChevronDown,
+  Pencil,
+  Trash2,
+  Check,
+  X,
+  PanelRight,
+  PanelRightClose,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { useChatStore } from "@/stores/chat-store";
 import { useChat } from "@/lib/hooks";
-import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/cn";
 
 interface ConversationHeaderProps {
   leading?: React.ReactNode;
+  referencesOpen?: boolean;
+  onToggleReferences?: () => void;
 }
 
-export function ConversationHeader({ leading }: ConversationHeaderProps) {
+export function ConversationHeader({
+  leading,
+  referencesOpen,
+  onToggleReferences,
+}: ConversationHeaderProps) {
   const { currentConversationId, conversations, renameConversation, removeConversation } =
     useChatStore();
   const { loadConversations } = useChat();
@@ -49,16 +62,6 @@ export function ConversationHeader({ leading }: ConversationHeaderProps) {
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [menuOpen]);
 
-  if (!currentConversationId || !conv) {
-    if (!leading) return null;
-    return (
-      <header className="md:hidden flex items-center gap-2 h-14 px-3 border-b border-border bg-surface">
-        {leading}
-        <Logo size="sm" />
-      </header>
-    );
-  }
-
   async function handleSubmitRename() {
     if (!conv) return;
     const trimmed = draft.trim();
@@ -89,10 +92,13 @@ export function ConversationHeader({ leading }: ConversationHeaderProps) {
     }
   }
 
+  const hasConv = currentConversationId && conv;
+  const title = hasConv ? conv.title || "Ny konversation" : null;
+
   return (
-    <header className="flex items-center gap-2 h-14 px-3 md:px-6 border-b border-border bg-surface">
+    <header className="flex items-center gap-1 h-12 px-2 md:px-4 shrink-0">
       {leading}
-      {editing ? (
+      {editing && conv ? (
         <div className="flex-1 min-w-0 flex items-center gap-1">
           <input
             ref={inputRef}
@@ -108,7 +114,7 @@ export function ConversationHeader({ leading }: ConversationHeaderProps) {
                 setEditing(false);
               }
             }}
-            className="flex-1 min-w-0 h-8 px-2 rounded bg-surface-2 border border-border text-[14px] text-fg focus:outline-none focus:border-accent"
+            className="flex-1 min-w-0 h-8 px-2 rounded bg-surface-2 border border-border text-[13px] text-fg focus:outline-none focus:border-accent"
           />
           <button
             type="button"
@@ -116,7 +122,7 @@ export function ConversationHeader({ leading }: ConversationHeaderProps) {
             aria-label="Spara"
             className="inline-flex h-8 w-8 items-center justify-center rounded text-accent hover:bg-surface-2"
           >
-            <Check size={16} />
+            <Check size={15} />
           </button>
           <button
             type="button"
@@ -124,33 +130,40 @@ export function ConversationHeader({ leading }: ConversationHeaderProps) {
             aria-label="Avbryt"
             className="inline-flex h-8 w-8 items-center justify-center rounded text-fg-muted hover:bg-surface-2"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
       ) : (
         <>
-          <h1 className="flex-1 min-w-0 truncate text-[14px] md:text-[15px] font-medium text-fg">
-            {conv.title || "Ny konversation"}
-          </h1>
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-label="Åtgärder"
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded text-fg-subtle hover:bg-surface-2 hover:text-fg transition-colors",
-                menuOpen && "bg-surface-2 text-fg",
-              )}
-            >
-              <MoreHorizontal size={16} />
-            </button>
-            {menuOpen && (
+          <div className="flex-1 min-w-0 relative" ref={menuRef}>
+            {title ? (
+              <button
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                className={cn(
+                  "group inline-flex max-w-full items-center gap-1 px-2 py-1.5 -mx-2 rounded-md transition-colors",
+                  "hover:bg-surface-2",
+                  menuOpen && "bg-surface-2",
+                )}
+              >
+                <span className="text-[13.5px] text-fg-muted truncate">{title}</span>
+                <ChevronDown
+                  size={13}
+                  className={cn(
+                    "text-fg-subtle shrink-0 transition-transform",
+                    menuOpen && "rotate-180",
+                  )}
+                />
+              </button>
+            ) : (
+              <span />
+            )}
+            {menuOpen && title && (
               <div
-                ref={menuRef}
                 role="menu"
-                className="absolute right-0 top-full z-20 mt-1 min-w-[160px] py-1 rounded-md border border-border bg-surface shadow-lg animate-fade-in"
+                className="absolute left-0 top-full z-20 mt-1 min-w-[180px] py-1 rounded-md border border-border bg-surface shadow-lg animate-fade-in"
               >
                 <button
                   type="button"
@@ -176,6 +189,20 @@ export function ConversationHeader({ leading }: ConversationHeaderProps) {
               </div>
             )}
           </div>
+          {hasConv && onToggleReferences && (
+            <button
+              type="button"
+              onClick={onToggleReferences}
+              aria-label={referencesOpen ? "Stäng referenser" : "Visa referenser"}
+              aria-pressed={referencesOpen}
+              className={cn(
+                "inline-flex h-8 w-8 items-center justify-center rounded text-fg-subtle hover:bg-surface-2 hover:text-fg transition-colors",
+                referencesOpen && "bg-surface-2 text-fg",
+              )}
+            >
+              {referencesOpen ? <PanelRightClose size={16} /> : <PanelRight size={16} />}
+            </button>
+          )}
         </>
       )}
     </header>

@@ -83,8 +83,8 @@ export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto scrollbar-thin px-3 py-4 md:px-6">
-      <div className="mx-auto max-w-[760px] space-y-3">
+    <div className="flex-1 overflow-y-auto scrollbar-thin px-4 py-4 md:px-8">
+      <div className="mx-auto max-w-[760px] space-y-6">
         {messages.map((msg, idx) => (
           <ChatMessage
             key={msg.id}
@@ -96,15 +96,10 @@ export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
           />
         ))}
         {isLoading && (
-          <div className="flex gap-2.5">
-            <div className="h-7 w-7 rounded-md bg-gradient-to-br from-accent to-accent-hover flex items-center justify-center text-white text-[10px] font-semibold mt-0.5">
-              A
-            </div>
-            <div className="rounded-[12px] bg-surface border border-border px-3.5 py-3 inline-flex gap-1.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:0ms]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:200ms]" />
-              <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:400ms]" />
-            </div>
+          <div className="inline-flex gap-1.5 py-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:0ms]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:200ms]" />
+            <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:400ms]" />
           </div>
         )}
         <div ref={bottomRef} />
