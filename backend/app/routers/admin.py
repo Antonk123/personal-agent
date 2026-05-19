@@ -57,7 +57,9 @@ async def export_data(
     msg_result = await db.execute(
         select(Message).where(Message.tenant_id == tenant_id).order_by(Message.created_at)
     )
-    messages = msg_result.scalars().all()
+    messages_by_conv: dict[uuid.UUID, list] = {}
+    for m in msg_result.scalars().all():
+        messages_by_conv.setdefault(m.conversation_id, []).append(m)
 
     frag_result = await db.execute(
         select(MemoryFragment).where(MemoryFragment.tenant_id == tenant_id)
@@ -82,8 +84,7 @@ async def export_data(
                 "title": c.title,
                 "messages": [
                     {"role": m.role, "content": m.content, "created_at": m.created_at.isoformat()}
-                    for m in messages
-                    if m.conversation_id == c.id
+                    for m in messages_by_conv.get(c.id, [])
                 ],
             }
             for c in conversations

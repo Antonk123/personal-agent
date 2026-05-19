@@ -1,8 +1,11 @@
+import logging
 import uuid
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.llm.prompts import SYSTEM_PROMPT_TEMPLATE
+
+logger = logging.getLogger(__name__)
 from app.services.memory_service import MemoryService
 from app.services.retrieval_service import RetrievalService
 
@@ -32,7 +35,8 @@ class ContextBuilder:
 
         try:
             retrieved = await self.retrieval_service.retrieve_context(tenant_id, user_message)
-        except Exception:
+        except Exception as exc:
+            logger.warning("Retrieval failed for tenant %s: %s", tenant_id, exc)
             retrieved = []
 
         profile_context = self._format_profile(profile)

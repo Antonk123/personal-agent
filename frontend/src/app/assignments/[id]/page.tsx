@@ -6,7 +6,8 @@ import { ArrowLeft, Plus, Phone, Mail } from "lucide-react";
 import { api } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
@@ -210,23 +211,6 @@ function DetailRow({ label, value }: { label: string; value?: string }) {
         {label}
       </span>
       <span className="text-[14px] text-fg text-right truncate">{value || "—"}</span>
-    </div>
-  );
-}
-
-function StatusBadge({ status, className }: { status: string; className?: string }) {
-  if (status === "active") return <Badge tone="success" className={className}>● Aktivt</Badge>;
-  if (status === "paused") return <Badge tone="warning" className={className}>⏸ Pausat</Badge>;
-  return <Badge className={className}>{status}</Badge>;
-}
-
-function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between mb-2.5">
-      <h2 className="text-[11px] uppercase tracking-[0.08em] text-fg-subtle font-mono font-medium">
-        {title}
-      </h2>
-      {action}
     </div>
   );
 }

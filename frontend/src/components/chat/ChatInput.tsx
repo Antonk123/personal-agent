@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Send, Paperclip } from "lucide-react";
+import { Send } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 interface ChatInputProps {
@@ -69,14 +69,6 @@ export function ChatInput({ onSend, disabled, placeholder = "Skriv ett meddeland
           )}
         />
         <div className="flex items-center gap-1 pb-0.5">
-          <button
-            type="button"
-            aria-label="Bifoga"
-            disabled
-            className="hidden md:inline-flex h-8 w-8 items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-surface-3 disabled:opacity-40"
-          >
-            <Paperclip size={16} />
-          </button>
           <button
             type="submit"
             disabled={!canSend}

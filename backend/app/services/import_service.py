@@ -1,9 +1,12 @@
 """Service for importing conversations from ChatGPT and Claude exports."""
 import json
+import logging
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.models.conversation import Conversation, Message
 from app.services.extraction_service import ExtractionService
@@ -77,8 +80,8 @@ class ImportService:
                         chunk = messages[i : i + 6]
                         await self.extraction_service.extract(tenant_id, chunk)
                         extracted_count += 1
-                except Exception:
-                    pass  # Don't fail import if extraction fails on one conversation
+                except Exception as exc:
+                    logger.warning("Extraction failed during import: %s", exc)
 
         return {
             "imported_conversations": imported_count,

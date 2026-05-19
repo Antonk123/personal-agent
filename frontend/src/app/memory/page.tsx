@@ -7,6 +7,8 @@ import { api } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
+import { SectionHeader } from "@/components/ui/SectionHeader";
 import { Skeleton } from "@/components/ui/Skeleton";
 
 interface Profile {
@@ -191,19 +193,3 @@ function StatCard({ icon, value, label, href }: {
   return href ? <Link href={href}>{content}</Link> : content;
 }
 
-function SectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between mb-2.5">
-      <h2 className="text-[11px] uppercase tracking-[0.08em] text-fg-subtle font-mono font-medium">
-        {title}
-      </h2>
-      {action}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  if (status === "active") return <Badge tone="success">● Aktivt</Badge>;
-  if (status === "paused") return <Badge tone="warning">⏸ Pausat</Badge>;
-  return <Badge>{status}</Badge>;
-}

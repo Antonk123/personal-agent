@@ -30,12 +30,7 @@ export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
   const { regenerate } = useChat();
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  const lastAssistantIdx = (() => {
-    for (let i = messages.length - 1; i >= 0; i--) {
-      if (messages[i].role === "assistant") return i;
-    }
-    return -1;
-  })();
+  const lastAssistantIdx = messages.findLastIndex((m) => m.role === "assistant");
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

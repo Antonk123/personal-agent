@@ -160,7 +160,17 @@ async def delete_conversation(
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Conversation not found")
 
-    await db.execute(delete(Message).where(Message.conversation_id == conversation_id))
-    await db.execute(delete(Conversation).where(Conversation.id == conversation_id))
+    await db.execute(
+        delete(Message).where(
+            Message.conversation_id == conversation_id,
+            Message.tenant_id == tenant_id,
+        )
+    )
+    await db.execute(
+        delete(Conversation).where(
+            Conversation.id == conversation_id,
+            Conversation.tenant_id == tenant_id,
+        )
+    )
     await db.commit()
     return None

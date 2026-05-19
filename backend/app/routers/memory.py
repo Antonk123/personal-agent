@@ -211,7 +211,7 @@ async def _delete_owned(
     )
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
-    await db.execute(delete(model).where(model.id == entity_id))
+    await db.execute(delete(model).where(model.id == entity_id, model.tenant_id == tenant_id))
 
 
 @router.delete("/assignments/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -238,7 +238,12 @@ async def delete_assignment(
         .where(Decision.assignment_id == assignment_id)
         .values(assignment_id=None)
     )
-    await db.execute(delete(Assignment).where(Assignment.id == assignment_id))
+    await db.execute(
+        delete(Assignment).where(
+            Assignment.id == assignment_id,
+            Assignment.tenant_id == tenant_id,
+        )
+    )
     await db.commit()
     return None
 

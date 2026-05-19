@@ -2,11 +2,13 @@ import json
 import logging
 import uuid
 
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.llm.claude_adapter import ClaudeAdapter
 from app.llm.prompts import EXTRACTION_PROMPT
+from app.models.assignment import Assignment
 from app.models.memory import MemoryFragment
 from app.services.memory_service import MemoryService
 from app.utils.embeddings import generate_embedding
@@ -118,8 +120,10 @@ class ExtractionService:
 
     async def _find_assignment_id(self, tenant_id: uuid.UUID, name: str) -> uuid.UUID | None:
         """Find assignment ID by name."""
-        assignments = await self.memory_service.list_assignments(tenant_id)
-        for a in assignments:
-            if a.name.lower() == name.lower():
-                return a.id
-        return None
+        result = await self.db.execute(
+            select(Assignment.id).where(
+                Assignment.tenant_id == tenant_id,
+                func.lower(Assignment.name) == name.lower(),
+            ).limit(1)
+        )
+        return result.scalar_one_or_none()

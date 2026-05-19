@@ -6,7 +6,7 @@ import { Plus, Briefcase, User as UserIcon, Calendar } from "lucide-react";
 import { api } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { StatusBadge } from "@/components/ui/StatusBadge";
 import { Button } from "@/components/ui/Button";
 import { Skeleton } from "@/components/ui/Skeleton";
 
@@ -107,11 +107,4 @@ export default function AssignmentsPage() {
       </div>
     </AppShell>
   );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  if (status === "active") return <Badge tone="success">● Aktivt</Badge>;
-  if (status === "paused") return <Badge tone="warning">⏸ Pausat</Badge>;
-  if (status === "completed") return <Badge>Avslutat</Badge>;
-  return <Badge>{status}</Badge>;
 }
