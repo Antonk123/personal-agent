@@ -71,6 +71,30 @@ class ApiClient {
     });
   }
 
+  async sendMessageStream(message: string, conversationId?: string): Promise<Response> {
+    const token = this.getToken();
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const response = await fetch(`${API_URL}/chat/stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ message, conversation_id: conversationId }),
+    });
+
+    if (response.status === 401) {
+      localStorage.removeItem("session_token");
+      window.location.href = "/auth/login";
+      throw new Error("Unauthorized");
+    }
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response;
+  }
+
   async getConversations() {
     return this.request<Array<{ id: string; title: string; updated_at: string }>>(
       "/chat/conversations"
@@ -130,7 +154,7 @@ class ApiClient {
 
   // Memory
   async getMemoryStats() {
-    return this.request<{ assignments: number; contacts: number; decisions: number }>(
+    return this.request<{ assignments: number; contacts: number; decisions: number; fragments: number }>(
       "/memory/stats"
     );
   }

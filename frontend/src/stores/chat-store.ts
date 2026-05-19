@@ -37,6 +37,8 @@ interface ChatState {
   renameConversation: (id: string, title: string) => void;
   removeConversation: (id: string) => void;
   popLastAssistantMessage: () => void;
+  appendToLastMessage: (chunk: string) => void;
+  updateLastMessageMeta: (meta: { id: string; refs?: MessageRef[] }) => void;
 }
 
 export const useChatStore = create<ChatState>((set) => ({
@@ -71,5 +73,19 @@ export const useChatStore = create<ChatState>((set) => ({
         return state;
       }
       return { messages: state.messages.slice(0, lastIdx) };
+    }),
+  appendToLastMessage: (chunk) =>
+    set((state) => {
+      const msgs = [...state.messages];
+      const last = msgs[msgs.length - 1];
+      if (last) msgs[msgs.length - 1] = { ...last, content: last.content + chunk };
+      return { messages: msgs };
+    }),
+  updateLastMessageMeta: (meta) =>
+    set((state) => {
+      const msgs = [...state.messages];
+      const last = msgs[msgs.length - 1];
+      if (last) msgs[msgs.length - 1] = { ...last, id: meta.id, refs: meta.refs };
+      return { messages: msgs };
     }),
 }));

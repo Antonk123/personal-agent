@@ -1,6 +1,8 @@
+import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,6 +48,34 @@ async def send_message(
         conversation_id=conv_id,
     )
     return ChatResponse(**result)
+
+
+@router.post("/stream")
+async def stream_message(
+    body: ChatRequest,
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Stream a chat response as server-sent events."""
+    service = ChatService(db)
+    conv_id = uuid.UUID(body.conversation_id) if body.conversation_id else None
+
+    async def event_generator():
+        try:
+            async for event_type, data in service.send_message_stream(
+                tenant_id=tenant_id,
+                message=body.message,
+                conversation_id=conv_id,
+            ):
+                yield f"event: {event_type}\ndata: {json.dumps(data)}\n\n"
+        except Exception as exc:
+            yield f"event: error\ndata: {json.dumps({'detail': str(exc)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.post("/conversations/{conversation_id}/regenerate", response_model=ChatResponse)

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Pencil, Briefcase, Users, FileText, ChevronRight } from "lucide-react";
+import { Pencil, Briefcase, Users, FileText, Brain, ChevronRight } from "lucide-react";
 import { api } from "@/lib/api";
 import { AppShell } from "@/components/AppShell";
 import { Card } from "@/components/ui/Card";
@@ -28,6 +28,7 @@ interface MemoryStats {
   assignments: number;
   contacts: number;
   decisions: number;
+  fragments: number;
 }
 
 export default function MemoryPage() {
@@ -55,7 +56,8 @@ export default function MemoryPage() {
       <div className="mx-auto max-w-[640px] px-4 py-5 space-y-5">
         {loading ? (
           <>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <Skeleton className="h-[72px]" />
               <Skeleton className="h-[72px]" />
               <Skeleton className="h-[72px]" />
               <Skeleton className="h-[72px]" />
@@ -64,7 +66,7 @@ export default function MemoryPage() {
           </>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <StatCard
                 icon={<Briefcase size={15} />}
                 value={stats?.assignments ?? assignments.length}
@@ -80,6 +82,11 @@ export default function MemoryPage() {
                 icon={<FileText size={15} />}
                 value={stats?.decisions ?? "—"}
                 label="Beslut"
+              />
+              <StatCard
+                icon={<Brain size={15} />}
+                value={stats?.fragments ?? "—"}
+                label="Minnen"
               />
             </div>
 

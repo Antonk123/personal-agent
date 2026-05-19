@@ -1,12 +1,14 @@
+import json
 import logging
 import uuid
+from typing import AsyncGenerator
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.llm.adapter import LLMResponse
-from app.llm.claude_adapter import ClaudeAdapter
+from app.llm.claude_adapter import ClaudeAdapter, DEFAULT_TOOLS
 from app.models.conversation import Conversation, Message
 from app.services.context_builder import ContextBuilder
 from app.services.extraction_service import ExtractionService
@@ -151,6 +153,86 @@ class ChatService:
         await self.db.flush()
 
         return await self._complete_turn(tenant_id, conversation, message)
+
+    async def send_message_stream(
+        self,
+        tenant_id: uuid.UUID,
+        message: str,
+        conversation_id: uuid.UUID | None = None,
+    ) -> AsyncGenerator[tuple[str, object], None]:
+        """Stream a chat response as (event_type, data) tuples.
+
+        Events: meta → chunk* → done (or error).
+        """
+        if conversation_id:
+            conversation = await self._get_conversation(tenant_id, conversation_id)
+        else:
+            conversation = await self._create_conversation(tenant_id)
+
+        user_msg = Message(
+            conversation_id=conversation.id,
+            tenant_id=tenant_id,
+            role="user",
+            content=message,
+        )
+        self.db.add(user_msg)
+        await self.db.flush()
+
+        yield ("meta", {"conversation_id": str(conversation.id)})
+
+        history = await self._get_history(conversation.id)
+        system_prompt, refs = await self.context_builder.build_with_refs(
+            tenant_id, message
+        )
+        llm_messages = [{"role": m.role, "content": m.content} for m in history]
+
+        adapter = ClaudeAdapter(
+            api_key=settings.anthropic_api_key, model=settings.default_model
+        )
+        collected: list[str] = []
+
+        kwargs: dict = {
+            "model": adapter.model,
+            "max_tokens": 4096,
+            "temperature": 0.7,
+            "system": system_prompt,
+            "messages": llm_messages,
+            "tools": DEFAULT_TOOLS,
+        }
+
+        async with adapter.client.messages.stream(**kwargs) as stream:
+            async for text in stream.text_stream:
+                collected.append(text)
+                yield ("chunk", {"text": text})
+            final = await stream.get_final_message()
+
+        full_text = "".join(collected)
+        tokens = final.usage.input_tokens + final.usage.output_tokens
+
+        assistant_msg = Message(
+            conversation_id=conversation.id,
+            tenant_id=tenant_id,
+            role="assistant",
+            content=full_text,
+            metadata_={"model": final.model, "tokens": tokens, "refs": refs},
+        )
+        self.db.add(assistant_msg)
+        await self.db.flush()
+
+        recent = [{"role": m.role, "content": m.content} for m in history[-3:]]
+        recent.append({"role": "assistant", "content": full_text})
+        await self._run_extraction(tenant_id, recent)
+        await self._maybe_set_title(conversation, history, full_text)
+
+        yield (
+            "done",
+            {
+                "conversation_id": str(conversation.id),
+                "message_id": str(assistant_msg.id),
+                "refs": refs,
+                "tokens_used": tokens,
+            },
+        )
 
     async def regenerate_last(
         self,

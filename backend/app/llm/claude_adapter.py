@@ -62,13 +62,18 @@ class ClaudeAdapter(LLMAdapter):
         messages: list[dict],
         max_tokens: int = 4096,
         temperature: float = 0.7,
+        tools: list[dict] | None = DEFAULT_TOOLS,
     ) -> AsyncGenerator[str, None]:
-        async with self.client.messages.stream(
-            model=self.model,
-            max_tokens=max_tokens,
-            temperature=temperature,
-            system=system_prompt,
-            messages=messages,
-        ) as stream:
+        kwargs: dict = {
+            "model": self.model,
+            "max_tokens": max_tokens,
+            "temperature": temperature,
+            "system": system_prompt,
+            "messages": messages,
+        }
+        if tools:
+            kwargs["tools"] = tools
+
+        async with self.client.messages.stream(**kwargs) as stream:
             async for text in stream.text_stream:
                 yield text

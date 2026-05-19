@@ -14,37 +14,68 @@ export function useChat() {
     setMessages,
     setConversations,
     popLastAssistantMessage,
+    appendToLastMessage,
+    updateLastMessageMeta,
   } = useChatStore();
 
   const sendMessage = useCallback(
     async (content: string) => {
-      const tempId = `temp-${Date.now()}`;
-      addMessage({ id: tempId, role: "user", content, created_at: new Date().toISOString() });
+      addMessage({ id: `temp-${Date.now()}`, role: "user", content, created_at: new Date().toISOString() });
+      addMessage({ id: `stream-${Date.now()}`, role: "assistant", content: "", created_at: new Date().toISOString() });
       setLoading(true);
       setError(null);
 
       try {
-        const result = await api.sendMessage(content, currentConversationId || undefined);
+        const response = await api.sendMessageStream(content, currentConversationId || undefined);
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
 
-        if (!currentConversationId) {
-          setCurrentConversation(result.conversation_id);
-          window.history.replaceState(null, "", `/chat/${result.conversation_id}`);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          while (true) {
+            const boundary = buffer.indexOf("\n\n");
+            if (boundary === -1) break;
+
+            const block = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
+
+            let eventType = "";
+            let eventData = "";
+            for (const line of block.split("\n")) {
+              if (line.startsWith("event: ")) eventType = line.slice(7);
+              else if (line.startsWith("data: ")) eventData = line.slice(6);
+            }
+
+            if (!eventType || !eventData) continue;
+
+            const parsed = JSON.parse(eventData);
+
+            if (eventType === "meta") {
+              if (!currentConversationId) {
+                setCurrentConversation(parsed.conversation_id);
+                window.history.replaceState(null, "", `/chat/${parsed.conversation_id}`);
+              }
+            } else if (eventType === "chunk") {
+              appendToLastMessage(parsed.text);
+            } else if (eventType === "done") {
+              updateLastMessageMeta({ id: parsed.message_id, refs: parsed.refs });
+            } else if (eventType === "error") {
+              setError(parsed.detail || "Streaming-fel.");
+            }
+          }
         }
-
-        addMessage({
-          id: result.message_id || `msg-${Date.now()}`,
-          role: "assistant",
-          content: result.response,
-          created_at: new Date().toISOString(),
-          refs: result.refs,
-        });
       } catch (err) {
         setError("Kunde inte skicka meddelandet. Försök igen.");
       } finally {
         setLoading(false);
       }
     },
-    [currentConversationId, addMessage, setLoading, setError, setCurrentConversation]
+    [currentConversationId, addMessage, setLoading, setError, setCurrentConversation, appendToLastMessage, updateLastMessageMeta]
   );
 
   const loadConversation = useCallback(

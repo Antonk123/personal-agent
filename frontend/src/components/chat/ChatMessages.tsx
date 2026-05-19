@@ -91,7 +91,7 @@ export function ChatMessages({ onSuggestion }: ChatMessagesProps) {
             refs={msg.refs}
           />
         ))}
-        {isLoading && (
+        {isLoading && (!messages.length || messages[messages.length - 1].role === "user" || messages[messages.length - 1].content === "") && (
           <div className="inline-flex gap-1.5 py-1">
             <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:0ms]" />
             <span className="h-1.5 w-1.5 rounded-full bg-fg-subtle animate-pulse [animation-delay:200ms]" />
