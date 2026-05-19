@@ -131,6 +131,34 @@ async def test_memory_assignments_requires_auth(client: AsyncClient):
     assert response.status_code == 401
 
 
+async def test_delete_assignment_requires_auth(client: AsyncClient):
+    response = await client.delete(
+        "/memory/assignments/00000000-0000-0000-0000-000000000000"
+    )
+    assert response.status_code == 401
+
+
+async def test_delete_contact_requires_auth(client: AsyncClient):
+    response = await client.delete(
+        "/memory/contacts/00000000-0000-0000-0000-000000000000"
+    )
+    assert response.status_code == 401
+
+
+async def test_delete_decision_requires_auth(client: AsyncClient):
+    response = await client.delete(
+        "/memory/decisions/00000000-0000-0000-0000-000000000000"
+    )
+    assert response.status_code == 401
+
+
+async def test_delete_fragment_requires_auth(client: AsyncClient):
+    response = await client.delete(
+        "/memory/fragments/00000000-0000-0000-0000-000000000000"
+    )
+    assert response.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # Admin router
 # ---------------------------------------------------------------------------

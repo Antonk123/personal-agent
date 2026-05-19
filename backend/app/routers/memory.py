@@ -1,8 +1,8 @@
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -190,3 +190,87 @@ async def add_decision(
     service = MemoryService(db)
     d = await service.add_decision(tenant_id, body.model_dump(exclude_none=True), assignment_id)
     return {"id": str(d.id), "summary": d.summary}
+
+
+# ---------------------------------------------------------------------------
+# DELETE endpoints — tenant-scoped, 204 on success, 404 if not found.
+# Assignment-delete orphans linked contacts/decisions (assignment_id → NULL)
+# rather than cascading, so the data survives if the user only wants to
+# tear down the project-level container.
+# ---------------------------------------------------------------------------
+
+
+async def _delete_owned(
+    db: AsyncSession,
+    model,
+    entity_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+) -> None:
+    result = await db.execute(
+        select(model).where(model.id == entity_id, model.tenant_id == tenant_id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail=f"{model.__name__} not found")
+    await db.execute(delete(model).where(model.id == entity_id))
+
+
+@router.delete("/assignments/{assignment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_assignment(
+    assignment_id: uuid.UUID,
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Assignment).where(
+            Assignment.id == assignment_id, Assignment.tenant_id == tenant_id
+        )
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Assignment not found")
+    # Orphan linked contacts and decisions instead of cascading the delete.
+    await db.execute(
+        update(Contact)
+        .where(Contact.assignment_id == assignment_id)
+        .values(assignment_id=None)
+    )
+    await db.execute(
+        update(Decision)
+        .where(Decision.assignment_id == assignment_id)
+        .values(assignment_id=None)
+    )
+    await db.execute(delete(Assignment).where(Assignment.id == assignment_id))
+    await db.commit()
+    return None
+
+
+@router.delete("/contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_contact(
+    contact_id: uuid.UUID,
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    await _delete_owned(db, Contact, contact_id, tenant_id)
+    await db.commit()
+    return None
+
+
+@router.delete("/decisions/{decision_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_decision(
+    decision_id: uuid.UUID,
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    await _delete_owned(db, Decision, decision_id, tenant_id)
+    await db.commit()
+    return None
+
+
+@router.delete("/fragments/{fragment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_fragment(
+    fragment_id: uuid.UUID,
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    await _delete_owned(db, MemoryFragment, fragment_id, tenant_id)
+    await db.commit()
+    return None
