@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.middleware.tenant import get_current_tenant
 from app.models.assignment import Assignment, Contact, Decision
+from app.models.memory import MemoryFragment
 from app.services.memory_service import MemoryService
 
 router = APIRouter(prefix="/memory", tags=["memory"])
@@ -58,10 +59,16 @@ async def get_stats(
     decisions_count = await db.scalar(
         select(func.count()).select_from(Decision).where(Decision.tenant_id == tenant_id)
     )
+    fragments_count = await db.scalar(
+        select(func.count())
+        .select_from(MemoryFragment)
+        .where(MemoryFragment.tenant_id == tenant_id)
+    )
     return {
         "assignments": int(assignments_count or 0),
         "contacts": int(contacts_count or 0),
         "decisions": int(decisions_count or 0),
+        "fragments": int(fragments_count or 0),
     }
 
 
