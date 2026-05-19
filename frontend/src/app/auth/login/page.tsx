@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ArrowRight, ArrowLeft, Mail, CheckCircle2, ShieldCheck } from "lucide-react";
 import { api } from "@/lib/api";
+import { setSession } from "@/lib/auth";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Input";
 import { Logo } from "@/components/ui/Logo";
+import { cn } from "@/lib/cn";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -118,6 +121,40 @@ export default function LoginPage() {
 }
 
 function SentCard({ email, onBack }: { email: string; onBack: () => void }) {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [codeError, setCodeError] = useState("");
+
+  async function submitCode(value: string) {
+    setVerifying(true);
+    setCodeError("");
+    try {
+      const data = await api.verifyCode(email, value);
+      setSession(data.session_token);
+      try {
+        const profile: any = await api.getProfile();
+        if (!profile || !profile.onboarding_completed) {
+          router.push("/onboarding");
+          return;
+        }
+      } catch {}
+      router.push("/chat");
+    } catch {
+      setCodeError("Koden stämmer inte eller har gått ut.");
+      setCode("");
+      setVerifying(false);
+    }
+  }
+
+  function handleChange(next: string) {
+    setCode(next);
+    if (codeError) setCodeError("");
+    if (next.length === 6 && !verifying) {
+      submitCode(next);
+    }
+  }
+
   return (
     <div className="w-full max-w-[400px] animate-slide-up">
       <div className="lg:hidden mb-8"><Logo size="md" /></div>
@@ -131,15 +168,41 @@ function SentCard({ email, onBack }: { email: string; onBack: () => void }) {
           En länk är på <em className="italic text-accent">väg till dig.</em>
         </h1>
         <p className="text-[15px] text-fg-muted leading-relaxed">
-          Vi skickade en inloggningslänk till{" "}
+          Vi skickade en inloggningskod till{" "}
           <span className="text-fg font-medium">{email}</span>.
-          Öppna mejlet på den här enheten för att slutföra inloggningen.
+          Skriv in den nedan för att logga in direkt här.
+        </p>
+
+        <div className="mt-6">
+          <Label htmlFor="code-0" className="text-center mb-3">
+            Sexsiffrig kod
+          </Label>
+          <CodeInput
+            value={code}
+            onChange={handleChange}
+            disabled={verifying}
+            invalid={!!codeError}
+          />
+          <div className="mt-3 min-h-[18px] text-center">
+            {verifying ? (
+              <span className="inline-flex items-center gap-2 font-mono text-[11px] text-fg-subtle">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-accent border-r-transparent" />
+                verifierar…
+              </span>
+            ) : codeError ? (
+              <span className="text-[13px] text-danger" role="alert">{codeError}</span>
+            ) : null}
+          </div>
+        </div>
+
+        <p className="mt-4 text-center text-[13px] text-fg-muted leading-relaxed">
+          Eller klicka länken i mejlet.
         </p>
 
         <div className="mt-6 pt-5 border-t border-border flex items-center justify-between font-mono text-[11px] text-fg-subtle">
           <span className="inline-flex items-center gap-1.5">
             <ShieldCheck size={11} />
-            endast giltig på den här enheten
+            kod & länk · engångsbruk
           </span>
           <span>15 min</span>
         </div>
@@ -152,6 +215,111 @@ function SentCard({ email, onBack }: { email: string; onBack: () => void }) {
         <ArrowLeft size={13} />
         Använd en annan adress
       </button>
+    </div>
+  );
+}
+
+interface CodeInputProps {
+  value: string;
+  onChange: (next: string) => void;
+  disabled?: boolean;
+  invalid?: boolean;
+}
+
+function CodeInput({ value, onChange, disabled, invalid }: CodeInputProps) {
+  const inputsRef = useRef<Array<HTMLInputElement | null>>([]);
+  const digits = value.padEnd(6, " ").slice(0, 6).split("");
+
+  useEffect(() => {
+    if (!disabled && value.length === 0) {
+      inputsRef.current[0]?.focus();
+    }
+  }, [disabled, value.length]);
+
+  function sanitize(next: string) {
+    return next.replace(/\D/g, "").slice(0, 6);
+  }
+
+  function handleInput(index: number, raw: string) {
+    const cleaned = raw.replace(/\D/g, "");
+    if (!cleaned) return;
+    if (cleaned.length > 1) {
+      // Paste of multiple digits
+      const merged = sanitize(value.slice(0, index) + cleaned);
+      onChange(merged);
+      const nextIdx = Math.min(merged.length, 5);
+      inputsRef.current[nextIdx]?.focus();
+      return;
+    }
+    const chars = value.split("");
+    chars[index] = cleaned;
+    const next = sanitize(chars.join(""));
+    onChange(next);
+    if (index < 5) inputsRef.current[index + 1]?.focus();
+  }
+
+  function handleKeyDown(index: number, e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      const chars = value.split("");
+      if (chars[index]) {
+        chars[index] = "";
+        onChange(chars.join(""));
+        return;
+      }
+      if (index > 0) {
+        chars[index - 1] = "";
+        onChange(chars.join(""));
+        inputsRef.current[index - 1]?.focus();
+      }
+    } else if (e.key === "ArrowLeft" && index > 0) {
+      e.preventDefault();
+      inputsRef.current[index - 1]?.focus();
+    } else if (e.key === "ArrowRight" && index < 5) {
+      e.preventDefault();
+      inputsRef.current[index + 1]?.focus();
+    }
+  }
+
+  function handlePaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    const pasted = sanitize(e.clipboardData.getData("text"));
+    if (!pasted) return;
+    e.preventDefault();
+    onChange(pasted);
+    const nextIdx = Math.min(pasted.length, 5);
+    inputsRef.current[nextIdx]?.focus();
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2" role="group" aria-label="Sexsiffrig kod">
+      {digits.map((char, i) => (
+        <input
+          key={i}
+          ref={(el) => {
+            inputsRef.current[i] = el;
+          }}
+          id={`code-${i}`}
+          type="text"
+          inputMode="numeric"
+          autoComplete={i === 0 ? "one-time-code" : "off"}
+          pattern="\d*"
+          maxLength={1}
+          value={char.trim()}
+          onChange={(e) => handleInput(i, e.target.value)}
+          onKeyDown={(e) => handleKeyDown(i, e)}
+          onPaste={handlePaste}
+          disabled={disabled}
+          aria-invalid={invalid || undefined}
+          aria-label={`Siffra ${i + 1} av 6`}
+          className={cn(
+            "h-12 w-11 text-center rounded-md border bg-surface font-mono text-[20px] font-medium text-fg",
+            "transition-colors duration-150",
+            "focus:outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/20",
+            "disabled:opacity-60 disabled:cursor-not-allowed",
+            invalid ? "border-danger" : "border-border",
+          )}
+        />
+      ))}
     </div>
   );
 }

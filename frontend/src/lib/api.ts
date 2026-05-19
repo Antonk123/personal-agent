@@ -47,6 +47,16 @@ class ApiClient {
     );
   }
 
+  async verifyCode(email: string, code: string) {
+    return this.request<{ session_token: string; expires_at: string }>(
+      "/auth/verify-code",
+      {
+        method: "POST",
+        body: JSON.stringify({ email, code }),
+      },
+    );
+  }
+
   // Chat
   async sendMessage(message: string, conversationId?: string) {
     return this.request<{

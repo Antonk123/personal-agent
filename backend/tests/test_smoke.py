@@ -68,6 +68,32 @@ async def test_verify_invalid_token_returns_400(
     assert response.status_code == 400
 
 
+async def test_verify_code_invalid_returns_404(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+):
+    """Unknown email + code combo should yield 404, not reveal existence."""
+
+    async def fake_verify_code(self, email: str, code: str):
+        return None
+
+    monkeypatch.setattr(auth_router.AuthService, "verify_code", fake_verify_code)
+
+    response = await client.post(
+        "/auth/verify-code",
+        json={"email": "nobody@example.com", "code": "123456"},
+    )
+    assert response.status_code == 404
+
+
+async def test_verify_code_rejects_bad_format(client: AsyncClient):
+    """Non-6-digit codes are rejected by pydantic with 422."""
+    response = await client.post(
+        "/auth/verify-code",
+        json={"email": "anyone@example.com", "code": "abc"},
+    )
+    assert response.status_code == 422
+
+
 # ---------------------------------------------------------------------------
 # Chat router — requires auth
 # ---------------------------------------------------------------------------

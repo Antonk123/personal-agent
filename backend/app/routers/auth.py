@@ -1,8 +1,9 @@
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,6 +13,8 @@ from app.models.auth import Session
 from app.models.tenant import Tenant
 from app.services.auth_service import AuthService
 from app.utils.email import send_magic_link_email
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,14 +35,14 @@ class SessionResponse(BaseModel):
 @router.post("/magic-link", response_model=MagicLinkResponse)
 async def request_magic_link(body: MagicLinkRequest, db: AsyncSession = Depends(get_db)):
     service = AuthService(db)
-    token = await service.request_magic_link(body.email)
+    result = await service.request_magic_link(body.email)
 
-    if token:
+    if result:
+        token, code = result
         try:
-            await send_magic_link_email(body.email, token)
+            await send_magic_link_email(body.email, token, code)
         except Exception as exc:
-            import logging
-            logging.getLogger(__name__).exception(
+            logger.exception(
                 "Failed to send magic link to %s: %s", body.email, exc
             )
 
@@ -54,6 +57,31 @@ async def verify_magic_link(token: str, db: AsyncSession = Depends(get_db)):
 
     if not session:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
+
+    return SessionResponse(
+        session_token=session.token, expires_at=session.expires_at.isoformat()
+    )
+
+
+class VerifyCodeRequest(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=6, max_length=6, pattern=r"^\d{6}$")
+
+
+@router.post("/verify-code", response_model=SessionResponse)
+async def verify_code(body: VerifyCodeRequest, db: AsyncSession = Depends(get_db)):
+    """Verify a 6-digit one-time code and issue a session.
+
+    Used by the PWA when the magic link opens in the system browser instead
+    of the installed app — the user pastes the code that was emailed alongside
+    the link.
+    """
+    service = AuthService(db)
+    session = await service.verify_code(body.email, body.code)
+
+    if not session:
+        logger.info("verify-code: invalid attempt for %s", body.email)
+        raise HTTPException(status_code=404, detail="Invalid or expired code")
 
     return SessionResponse(
         session_token=session.token, expires_at=session.expires_at.isoformat()
