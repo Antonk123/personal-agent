@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  Plus,
   Search,
   MessageSquare,
   MoreHorizontal,
@@ -104,29 +103,25 @@ export function ConversationList({ onSelect }: ConversationListProps) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-surface">
-      <div className="p-3 border-b border-border space-y-2">
-        <Link
-          href="/chat"
-          onClick={onSelect}
-          className="flex items-center justify-center gap-1.5 h-9 px-3 rounded-md bg-accent text-white text-[13px] font-medium hover:bg-accent-hover transition-colors"
-        >
-          <Plus size={15} />
-          Ny konversation
-        </Link>
+    <div className="flex flex-col h-full">
+      <div className="px-2 pb-2">
         <div className="relative">
-          <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle" />
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-fg-subtle" />
           <input
             type="search"
             placeholder="Sök i konversationer"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full h-9 pl-8 pr-2.5 rounded-md bg-surface-2 border border-transparent text-[13px] text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent focus:bg-surface"
+            className="w-full h-8 pl-7 pr-2.5 rounded-md bg-surface-2 border border-transparent text-[12.5px] text-fg placeholder:text-fg-subtle focus:outline-none focus:border-accent focus:bg-surface"
           />
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto scrollbar-thin p-2">
+      <div className="px-2 pt-1 pb-1 text-[10px] uppercase tracking-[0.08em] text-fg-subtle font-mono">
+        Senaste
+      </div>
+
+      <div className="flex-1 overflow-y-auto scrollbar-thin px-1 pb-2">
         {!loaded && (
           <div className="space-y-2 p-2">
             <Skeleton className="h-3 w-16 mb-2" />

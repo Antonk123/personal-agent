@@ -6,8 +6,7 @@ import { Menu } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { ConversationHeader } from "@/components/chat/ConversationHeader";
-import { BottomNav } from "@/components/ui/BottomNav";
-import { SideRail } from "@/components/ui/SideRail";
+import { Sidebar } from "@/components/Sidebar";
 import { IconButton } from "@/components/ui/IconButton";
 import { useChat } from "@/lib/hooks";
 
@@ -37,11 +36,11 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-dvh bg-bg">
-      <SideRail />
-
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:w-[280px] shrink-0 border-r border-border">
-        <ConversationList />
+      <aside className="hidden md:flex md:w-[260px] shrink-0 border-r border-border">
+        <Sidebar>
+          <ConversationList />
+        </Sidebar>
       </aside>
 
       {/* Mobile drawer */}
@@ -53,14 +52,16 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
           <div className="absolute inset-0 bg-fg/40 animate-fade-in" />
           <aside
             onClick={(e) => e.stopPropagation()}
-            className="absolute top-0 left-0 bottom-0 w-[88%] max-w-[320px] bg-surface shadow-lg animate-slide-up"
+            className="absolute top-0 left-0 bottom-0 w-[88%] max-w-[300px] bg-surface shadow-lg animate-slide-up"
           >
-            <ConversationList variant="drawer" onSelect={() => setDrawerOpen(false)} />
+            <Sidebar onNavigate={() => setDrawerOpen(false)}>
+              <ConversationList onSelect={() => setDrawerOpen(false)} />
+            </Sidebar>
           </aside>
         </div>
       )}
 
-      <main className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
+      <main className="flex-1 flex flex-col min-w-0">
         <ConversationHeader
           leading={
             <IconButton
@@ -74,7 +75,6 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
         />
         {children}
       </main>
-      <BottomNav />
     </div>
   );
 }
