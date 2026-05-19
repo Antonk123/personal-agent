@@ -159,6 +159,11 @@ async def test_delete_fragment_requires_auth(client: AsyncClient):
     assert response.status_code == 401
 
 
+async def test_memory_all_requires_auth(client: AsyncClient):
+    response = await client.get("/memory/all")
+    assert response.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # Admin router
 # ---------------------------------------------------------------------------

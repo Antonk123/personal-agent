@@ -274,3 +274,71 @@ async def delete_fragment(
     await _delete_owned(db, MemoryFragment, fragment_id, tenant_id)
     await db.commit()
     return None
+
+
+@router.get("/all")
+async def list_all(
+    tenant_id: uuid.UUID = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Compact inventory of every memory entity belonging to the tenant.
+
+    Used by the management UI to surface orphaned contacts/decisions and
+    memory fragments that don't show up in the per-assignment view.
+    Returns IDs + minimal display fields; full detail still lives on the
+    typed endpoints.
+    """
+    assignments = (
+        (
+            await db.execute(
+                select(Assignment).where(Assignment.tenant_id == tenant_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    contacts = (
+        (await db.execute(select(Contact).where(Contact.tenant_id == tenant_id)))
+        .scalars()
+        .all()
+    )
+    decisions = (
+        (await db.execute(select(Decision).where(Decision.tenant_id == tenant_id)))
+        .scalars()
+        .all()
+    )
+    fragments = (
+        (
+            await db.execute(
+                select(MemoryFragment).where(MemoryFragment.tenant_id == tenant_id)
+            )
+        )
+        .scalars()
+        .all()
+    )
+    return {
+        "assignments": [
+            {"id": str(a.id), "name": a.name, "status": a.status} for a in assignments
+        ],
+        "contacts": [
+            {
+                "id": str(c.id),
+                "name": c.name,
+                "company": c.company,
+                "assignment_id": str(c.assignment_id) if c.assignment_id else None,
+            }
+            for c in contacts
+        ],
+        "decisions": [
+            {
+                "id": str(d.id),
+                "summary": d.summary,
+                "assignment_id": str(d.assignment_id) if d.assignment_id else None,
+            }
+            for d in decisions
+        ],
+        "fragments": [
+            {"id": str(f.id), "content": f.content[:120], "category": f.category}
+            for f in fragments
+        ],
+    }
