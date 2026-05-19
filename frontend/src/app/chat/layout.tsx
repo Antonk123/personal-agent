@@ -5,20 +5,26 @@ import { useRouter } from "next/navigation";
 import { Menu } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
 import { ConversationList } from "@/components/chat/ConversationList";
+import { ConversationHeader } from "@/components/chat/ConversationHeader";
 import { BottomNav } from "@/components/ui/BottomNav";
-import { Logo } from "@/components/ui/Logo";
 import { IconButton } from "@/components/ui/IconButton";
+import { useChat } from "@/lib/hooks";
 
 export default function ChatLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const { loadConversations } = useChat();
 
   useEffect(() => {
     const ok = isAuthenticated();
     if (!ok) router.push("/auth/login");
     setAuthed(ok);
   }, [router]);
+
+  useEffect(() => {
+    if (authed) loadConversations();
+  }, [authed, loadConversations]);
 
   if (authed === null) {
     return (
@@ -52,12 +58,17 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
       )}
 
       <main className="flex-1 flex flex-col min-w-0 pb-16 md:pb-0">
-        <header className="md:hidden flex items-center gap-2 h-14 px-3 border-b border-border bg-surface">
-          <IconButton aria-label="Konversationer" onClick={() => setDrawerOpen(true)}>
-            <Menu size={18} />
-          </IconButton>
-          <Logo size="sm" />
-        </header>
+        <ConversationHeader
+          leading={
+            <IconButton
+              aria-label="Konversationer"
+              onClick={() => setDrawerOpen(true)}
+              className="md:hidden"
+            >
+              <Menu size={18} />
+            </IconButton>
+          }
+        />
         {children}
       </main>
       <BottomNav />
