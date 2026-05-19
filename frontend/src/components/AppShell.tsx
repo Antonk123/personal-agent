@@ -4,6 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { SideRail } from "@/components/ui/SideRail";
 import { Logo } from "@/components/ui/Logo";
 
 interface AppShellProps {
@@ -31,16 +32,19 @@ export function AppShell({ children, title, action }: AppShellProps) {
   }
 
   return (
-    <div className="flex flex-col min-h-dvh bg-bg pb-16 md:pb-0">
-      <header className="sticky top-0 z-30 flex items-center gap-3 h-14 px-4 border-b border-border bg-surface/85 backdrop-blur-md">
-        {title ? (
-          <h1 className="text-[15px] font-semibold tracking-tight truncate flex-1">{title}</h1>
-        ) : (
-          <Logo size="sm" className="flex-1" />
-        )}
-        {action}
-      </header>
-      <main className="flex-1">{children}</main>
+    <div className="flex min-h-dvh bg-bg pb-16 md:pb-0">
+      <SideRail />
+      <div className="flex flex-col flex-1 min-w-0">
+        <header className="sticky top-0 z-30 flex items-center gap-3 h-14 px-4 border-b border-border bg-surface/85 backdrop-blur-md">
+          {title ? (
+            <h1 className="text-[15px] font-semibold tracking-tight truncate flex-1">{title}</h1>
+          ) : (
+            <Logo size="sm" className="flex-1" />
+          )}
+          {action}
+        </header>
+        <main className="flex-1">{children}</main>
+      </div>
       <BottomNav />
     </div>
   );

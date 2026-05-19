@@ -7,6 +7,7 @@ import { isAuthenticated } from "@/lib/auth";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { ConversationHeader } from "@/components/chat/ConversationHeader";
 import { BottomNav } from "@/components/ui/BottomNav";
+import { SideRail } from "@/components/ui/SideRail";
 import { IconButton } from "@/components/ui/IconButton";
 import { useChat } from "@/lib/hooks";
 
@@ -36,6 +37,8 @@ export default function ChatLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <div className="flex h-dvh bg-bg">
+      <SideRail />
+
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:w-[280px] shrink-0 border-r border-border">
         <ConversationList />
